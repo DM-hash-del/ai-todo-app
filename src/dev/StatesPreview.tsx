@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import AddTaskForm from '../components/AddTaskForm'
 import ConfirmDialog from '../components/ConfirmDialog'
+import DeleteTasksDialog from '../components/DeleteTasksDialog'
 import Header from '../components/Header'
 import TaskList from '../components/TaskList'
 import type { SuggestionState, Task } from '../types'
@@ -138,6 +139,7 @@ function Example({ title, note, children }: { title: string; note: string; child
 
 function StatesPreview() {
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <div className="min-h-dvh">
       <Header />
@@ -161,7 +163,7 @@ function StatesPreview() {
         </Example>
         <Example
           title="Delete confirmation"
-          note="Deleting an unfinished task asks first; completed tasks are deleted straight away. Cancel is focused, Escape cancels, and Tab stays inside."
+          note="Deleting an unfinished task asks first; completed tasks are deleted straight away. Cancel is focused, Escape or a click on the backdrop cancels, and Tab stays inside."
         >
           <button
             type="button"
@@ -171,7 +173,26 @@ function StatesPreview() {
             Open dialog
           </button>
         </Example>
+        <Example
+          title="Delete tasks picker"
+          note="The “Delete tasks” button under the list opens this. Click tasks to select them (each shows whether it’s done); Delete always asks for confirmation. Only Cancel or Escape closes it, not a click outside."
+        >
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="min-h-8 self-start rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-fg transition-colors hover:bg-surface-muted"
+          >
+            Open picker
+          </button>
+        </Example>
       </main>
+      {pickerOpen && (
+        <DeleteTasksDialog
+          tasks={examples.map((example) => example.task)}
+          onDelete={() => setPickerOpen(false)}
+          onCancel={() => setPickerOpen(false)}
+        />
+      )}
       {confirmOpen && (
         <ConfirmDialog
           title="Delete task?"
