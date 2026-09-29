@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import TaskItem from './TaskItem'
@@ -17,16 +17,27 @@ function renderItem(overrides: Partial<ComponentProps<typeof TaskItem>> = {}) {
 }
 
 describe('TaskItem', () => {
-  it('shows when the task was created, in local time', () => {
+  it('shows when the task was created at the bottom of the tips, in local time', async () => {
     const createdAt = new Date(2026, 10, 9, 15, 45).toISOString()
-    renderItem({ task: { ...task, createdAt } })
+    renderItem({ task: { ...task, tips: ['Check the date'], createdAt } })
     const time = screen.getByText('Created: 09.11.26 at 15:45')
+    const panel = document.getElementById('task-1-tips')!
+    expect(panel).toContainElement(time)
+    expect(panel).toHaveAttribute('inert')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tips for "Buy milk"' }))
+    expect(panel).not.toHaveAttribute('inert')
     expect(time).toHaveAttribute('datetime', createdAt)
     expect(time.parentElement).toHaveClass('text-fg-subtle', 'font-light')
+    // Last thing in the panel, after the tips.
+    expect(panel.firstElementChild!.lastElementChild).toBe(time.parentElement)
   })
 
-  it('shows no creation time for tasks saved before it was recorded', () => {
-    renderItem()
+  it('shows no creation time without tips, or for tasks saved before it was recorded', () => {
+    renderItem({ task: { ...task, createdAt: new Date().toISOString() } })
+    expect(screen.queryByText(/^Created:/)).not.toBeInTheDocument()
+    cleanup()
+    renderItem({ task: { ...task, tips: ['Check the date'] } })
     expect(screen.queryByText(/^Created:/)).not.toBeInTheDocument()
   })
 
@@ -143,19 +154,20 @@ describe('TaskItem', () => {
       renderItem({ task: kept })
       const toggle = screen.getByRole('button', { name: 'Tips for "Buy milk"' })
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByText('Check the date')).not.toBeInTheDocument()
+      // Collapsed tips stay mounted (to animate) but are hidden and inert.
+      expect(screen.queryByRole('list', { name: 'Tips for "Buy milk"' })).not.toBeInTheDocument()
 
       await userEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'true')
       const list = screen.getByRole('list', { name: 'Tips for "Buy milk"' })
-      expect(toggle).toHaveAttribute('aria-controls', list.id)
+      expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toContainElement(list)
       expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(
         kept.tips,
       )
 
       await userEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByText('Check the date')).not.toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: 'Tips for "Buy milk"' })).not.toBeInTheDocument()
     })
 
     it('puts the tips toggle just before Improve', () => {

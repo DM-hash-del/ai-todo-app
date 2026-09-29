@@ -25,11 +25,13 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
   },
   {
     title: 'Created time',
-    note: 'New tasks record when they were added, shown dimmed above the actions in the user’s local time. Tasks saved before this existed show nothing.',
+    note: 'New tasks record when they were added. It shows dimmed at the bottom right of the Tips dropdown (open it; it animates), in the user’s local time. Tasks without tips, or saved before this existed, show nothing.',
     task: {
       id: 'created',
       name: 'Book dentist appointment',
       done: false,
+      category: 'Health',
+      tips: ['Check your calendar for a free morning', 'Have your insurance number ready'],
       createdAt: new Date(2026, 10, 9, 15, 45).toISOString(),
     },
   },

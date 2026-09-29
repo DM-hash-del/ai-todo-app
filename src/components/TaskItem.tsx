@@ -52,12 +52,8 @@ function TaskItem({
 
   return (
     <li className="flex flex-col gap-2 px-3 py-2 transition-colors hover:bg-surface-muted/50 focus-within:bg-surface-muted/50 sm:px-4">
+      {/* No gap here: the collapsed tips panel below has zero height and mustn't add space. */}
       <div className="flex flex-col">
-        {task.createdAt && (
-          <p className="pr-1 text-right text-xs font-light text-fg-subtle">
-            <time dateTime={task.createdAt}>{formatCreated(task.createdAt)}</time>
-          </p>
-        )}
         <div className="flex items-center gap-1">
           {/* The label wraps the checkbox so the whole name is one large click target. */}
           <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md py-1.5 pr-1 pl-1">
@@ -102,7 +98,7 @@ function TaskItem({
             >
               <span className="hidden sm:inline">Tips</span>
               <ChevronDownIcon
-                className={`size-4 transition-transform sm:size-3.5 ${tipsOpen ? 'rotate-180' : ''}`}
+                className={`size-4 transition-transform duration-200 ease-out motion-reduce:transition-none sm:size-3.5 ${tipsOpen ? 'rotate-180' : ''}`}
               />
             </button>
           )}
@@ -130,20 +126,37 @@ function TaskItem({
             <CloseIcon />
           </button>
         </div>
+        {tips.length > 0 && (
+          // Stays mounted so it can animate open and closed (grid rows 0fr <-> 1fr).
+          // While closed it's inert and hidden from assistive tech.
+          <div
+            id={tipsId}
+            inert={!tipsOpen}
+            aria-hidden={!tipsOpen}
+            className={`grid transition-all duration-200 ease-out motion-reduce:transition-none ${
+              tipsOpen ? 'grid-rows-expanded opacity-100' : 'grid-rows-collapsed opacity-0'
+            }`}
+          >
+            <div className="flex min-h-0 flex-col gap-1 overflow-hidden">
+              <ul
+                aria-label={`Tips for "${task.name}"`}
+                className="mt-2 flex list-disc flex-col gap-1 pl-12 text-xs text-fg-muted marker:text-fg-subtle"
+              >
+                {tips.map((tip, index) => (
+                  <li key={index} className="break-words">
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+              {task.createdAt && (
+                <p className="pr-1 pb-1 text-right text-xs font-light text-fg-subtle">
+                  <time dateTime={task.createdAt}>{formatCreated(task.createdAt)}</time>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      {tips.length > 0 && tipsOpen && (
-        <ul
-          id={tipsId}
-          aria-label={`Tips for "${task.name}"`}
-          className="flex list-disc flex-col gap-1 pb-1 pl-12 text-xs text-fg-muted marker:text-fg-subtle"
-        >
-          {tips.map((tip, index) => (
-            <li key={index} className="break-words">
-              {tip}
-            </li>
-          ))}
-        </ul>
-      )}
       {suggestion && (
         <div className="pb-1 pl-8">
           <SuggestionPanel

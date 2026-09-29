@@ -178,14 +178,15 @@ describe('App persistence', () => {
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
   })
 
-  it('records and shows when a task was created', async () => {
+  it('records when a task was created', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 10, 9, 15, 45))
     try {
       const user = userEvent.setup()
       render(<App />)
       await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
-      expect(screen.getByText('Created: 09.11.26 at 15:45')).toBeInTheDocument()
+      // Shown only inside the tips dropdown, which a new task doesn't have yet.
+      expect(screen.queryByText(/^Created:/)).not.toBeInTheDocument()
       expect(stored()[0].createdAt).toBe(new Date(2026, 10, 9, 15, 45).toISOString())
     } finally {
       vi.useRealTimers()
