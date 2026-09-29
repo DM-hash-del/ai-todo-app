@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
-import type { KeyboardEvent, ReactNode } from 'react'
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
+import { trapTab } from './focusTrap'
 
 type ConfirmDialogProps = {
   title: string
@@ -10,8 +11,8 @@ type ConfirmDialogProps = {
 }
 
 // A modal confirmation. Cancel gets focus first so Enter can't confirm by accident;
-// Escape cancels, and Tab stays inside the dialog. The caller decides where focus
-// goes once it closes.
+// Escape or a click on the dimmed backdrop cancels, and Tab stays inside the dialog.
+// The caller decides where focus goes once it closes.
 function ConfirmDialog({ title, children, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
   const titleId = useId()
   const descriptionId = useId()
@@ -28,22 +29,30 @@ function ConfirmDialog({ title, children, confirmLabel, onConfirm, onCancel }: C
       onCancel()
       return
     }
-    if (event.key !== 'Tab') return
-    const buttons = dialogRef.current?.querySelectorAll('button')
-    if (!buttons?.length) return
-    const first = buttons[0]
-    const last = buttons[buttons.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
+    trapTab(event, dialogRef.current)
+  }
+
+  // Only a click that both starts and ends on the backdrop cancels, so dragging
+  // out of the dialog (e.g. while selecting text) doesn't close it.
+  const pressedBackdrop = useRef(false)
+
+  function handleBackdropMouseDown(event: MouseEvent<HTMLDivElement>) {
+    pressedBackdrop.current = event.target === event.currentTarget
+  }
+
+  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
+    if (pressedBackdrop.current && event.target === event.currentTarget) onCancel()
+    pressedBackdrop.current = false
   }
 
   return (
-    <div className="fixed inset-0 z-10 flex items-center justify-center bg-overlay p-4">
+    // The backdrop isn't a control: keyboard users cancel with Escape or Cancel. It sits
+    // above the Delete tasks picker (z-10) when confirming a bulk delete.
+    <div
+      onMouseDown={handleBackdropMouseDown}
+      onClick={handleBackdropClick}
+      className="fixed inset-0 z-20 flex items-center justify-center bg-overlay p-4"
+    >
       <div
         ref={dialogRef}
         role="alertdialog"

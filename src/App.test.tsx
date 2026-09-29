@@ -118,6 +118,134 @@ describe('App', () => {
     await user.tab({ shift: true })
     expect(confirm).toHaveFocus()
   })
+
+  it('cancels the confirmation on a click outside it, but not inside it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    const deleteButton = screen.getByRole('button', { name: 'Delete "Buy milk"' })
+
+    await user.click(deleteButton)
+    const dialog = screen.getByRole('alertdialog')
+    await user.click(within(dialog).getByRole('heading'))
+    expect(dialog).toBeInTheDocument()
+
+    await user.click(dialog.parentElement!)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeInTheDocument()
+    expect(deleteButton).toHaveFocus()
+  })
+})
+
+describe('App bulk delete', () => {
+  async function addTasks(...names: string[]) {
+    const user = userEvent.setup()
+    render(<App />)
+    for (const name of names) await user.type(screen.getByLabelText('New task'), `${name}{Enter}`)
+    return user
+  }
+
+  it('only shows Delete tasks when there are tasks', async () => {
+    render(<App />)
+    expect(screen.queryByRole('button', { name: 'Delete tasks' })).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    expect(screen.getByRole('button', { name: 'Delete tasks' })).toBeInTheDocument()
+  })
+
+  it('lists every task with its done status', async () => {
+    const user = await addTasks('Buy milk', 'Walk dog')
+    await user.click(screen.getByRole('checkbox', { name: 'Walk dog' }))
+    await user.click(screen.getByRole('button', { name: 'Delete tasks' }))
+
+    const picker = screen.getByRole('dialog', { name: 'Delete tasks' })
+    const milk = within(picker).getByRole('checkbox', { name: 'Buy milk' })
+    expect(milk).toHaveFocus()
+    expect(milk).not.toBeChecked()
+    expect(milk).toHaveAccessibleDescription('Not done')
+    expect(within(picker).getByRole('checkbox', { name: 'Walk dog' })).toHaveAccessibleDescription(
+      'Done',
+    )
+    expect(within(picker).getByRole('button', { name: 'Delete' })).toBeDisabled()
+  })
+
+  it('always confirms, then deletes the picked tasks from state and storage', async () => {
+    const user = await addTasks('Buy milk', 'Walk dog', 'Call mum')
+    await user.click(screen.getByRole('checkbox', { name: 'Walk dog' }))
+    await user.click(screen.getByRole('button', { name: 'Delete tasks' }))
+    const picker = screen.getByRole('dialog', { name: 'Delete tasks' })
+    await user.click(within(picker).getByText('Walk dog'))
+    await user.click(within(picker).getByText('Call mum'))
+    await user.click(within(picker).getByRole('button', { name: 'Delete' }))
+
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete 2 tasks?' })
+    expect(confirm).toHaveAccessibleDescription(/1 of them isn’t done yet/)
+    expect(within(confirm).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await user.click(within(confirm).getByRole('button', { name: 'Delete' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Walk dog' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Call mum' })).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeInTheDocument()
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as StoredTask[]
+    expect(stored.map((task) => task.name)).toEqual(['Buy milk'])
+    expect(screen.getByRole('button', { name: 'Delete tasks' })).toHaveFocus()
+  })
+
+  it('confirms even when every picked task is done', async () => {
+    const user = await addTasks('Buy milk')
+    await user.click(screen.getByRole('checkbox', { name: 'Buy milk' }))
+    await user.click(screen.getByRole('button', { name: 'Delete tasks' }))
+    const picker = screen.getByRole('dialog', { name: 'Delete tasks' })
+    await user.click(within(picker).getByText('Buy milk'))
+    await user.click(within(picker).getByRole('button', { name: 'Delete' }))
+
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete 1 task?' })
+    expect(confirm).not.toHaveAccessibleDescription(/done yet/)
+    await user.click(within(confirm).getByRole('button', { name: 'Delete' }))
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument()
+    expect(screen.getByLabelText('New task')).toHaveFocus()
+  })
+
+  it('backs out of the confirmation to the picker with the selection kept', async () => {
+    const user = await addTasks('Buy milk', 'Walk dog')
+    await user.click(screen.getByRole('button', { name: 'Delete tasks' }))
+    const picker = screen.getByRole('dialog', { name: 'Delete tasks' })
+    await user.click(within(picker).getByRole('checkbox', { name: 'Walk dog' }))
+    const pickerDelete = within(picker).getByRole('button', { name: 'Delete' })
+
+    await user.click(pickerDelete)
+    await user.click(screen.getByRole('alertdialog').parentElement!)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(within(picker).getByRole('checkbox', { name: 'Walk dog' })).toBeChecked()
+    expect(pickerDelete).toHaveFocus()
+
+    await user.click(pickerDelete)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Delete tasks' })).toBeInTheDocument()
+    expect(screen.getAllByRole('checkbox', { name: 'Walk dog' })).toHaveLength(2)
+  })
+
+  it('closes the picker only with Cancel or Escape, not a click outside', async () => {
+    const user = await addTasks('Buy milk')
+    const open = screen.getByRole('button', { name: 'Delete tasks' })
+    await user.click(open)
+    const picker = screen.getByRole('dialog', { name: 'Delete tasks' })
+
+    await user.click(picker.parentElement!)
+    expect(picker).toBeInTheDocument()
+
+    await user.click(within(picker).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(open).toHaveFocus()
+
+    await user.click(open)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeInTheDocument()
+    expect(open).toHaveFocus()
+  })
 })
 
 describe('App persistence', () => {
