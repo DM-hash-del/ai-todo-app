@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+- Never expose OPENAI_API_KEY to client code. All OpenAI calls go through server/index.ts.
+- Frontend calls the backend at /api/* (proxied by Vite).
+- Tests use Vitest + React Testing Library; mock fetch, never call OpenAI in tests.
+- Styling uses Tailwind utility classes.
+
 ## Commands
 
 - `npm run dev`: runs the Vite frontend (`web`) and the Express API (`api`, via `tsx watch --env-file=.env`) together using `concurrently`
