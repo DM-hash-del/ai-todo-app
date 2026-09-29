@@ -64,7 +64,7 @@ Example: `<button className="rounded-md bg-accent px-4 py-2 text-sm font-medium 
 
 The app has two processes that run side by side in development:
 
-- **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`, which also holds the design tokens (`@theme`); there is no tailwind config file. `src/App.tsx` is still the Vite starter template and hasn't been built out yet. `src/App.css` is part of that starter and doesn't follow the design system, so delete it when building the real UI and don't copy its patterns.
+- **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`, which also holds the design tokens (`@theme`); there is no tailwind config file. `src/App.tsx` owns the to-do list (`Task[]` in React state; the type is in `src/types.ts`) and lays out a full-width `Header` above a centred `max-w-app` column containing `AddTaskForm` and `TaskList`, which renders one `TaskItem` per task. Components live in `src/components/`, one per file, with tests next to them (`*.test.tsx`). Tasks aren't persisted yet, so a reload clears them, and the `/api/suggest` call isn't wired into the UI yet.
 - **API** (`server/index.ts`): an Express 5 server on port 3001. It exposes `POST /api/suggest`, which takes `{ description }` and calls the OpenAI **Responses API** (`openai.responses.parse`) with a Zod schema (`zodTextFormat`) to get structured output: `{ improvedName, tips[], category }`. The app's purpose is AI-assisted to-do item improvement.
 - **Proxy:** in `vite.config.ts`, Vite proxies `/api` to `http://localhost:3001`. Frontend code should call relative `/api/...` URLs so the OpenAI key never reaches the browser.
 
@@ -74,7 +74,7 @@ TypeScript is split with project references:
 
 Both configs enable `verbatimModuleSyntax` and `erasableSyntaxOnly`. That means type-only imports must use `import type`, and TS-only runtime syntax such as enums, namespaces, and parameter properties is not allowed.
 
-Testing uses Vitest with jsdom and Testing Library. The setup file is `src/test/setup.ts`, which registers the `jest-dom` matchers. No tests exist yet. `src/setup.ts` is an empty stray file.
+Testing uses Vitest with jsdom and Testing Library. The setup file is `src/test/setup.ts`, which registers the `jest-dom` matchers and calls Testing Library's `cleanup` after each test. Vitest `globals` is off, so that cleanup doesn't happen automatically, and without it rendered DOM carries over between tests. Import `describe`/`it`/`expect`/`vi` from `vitest` explicitly. `src/setup.ts` is an empty stray file.
 
 ## API contract (design the frontend around this)
 
