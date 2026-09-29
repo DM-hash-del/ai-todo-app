@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Never expose OPENAI_API_KEY to client code. All OpenAI calls go through server/index.ts.
 - Frontend calls the backend at /api/* (proxied by Vite).
 - Tests use Vitest + React Testing Library; mock fetch, never call OpenAI in tests.
-- Styling uses Tailwind utility classes.
+- Styling uses Tailwind utility classes built from the design tokens in `src/index.css`. Never use raw hex/rgb/oklch values or arbitrary values like `bg-[#fff]` in components (see "Design system" below).
 
 ## Commands
 
@@ -15,11 +15,56 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm test`: Vitest in watch mode. Use `npx vitest run` for a single pass, `npx vitest run path/to/file.test.tsx` for one file, and `-t "name"` to filter by test name.
 - `npm run typecheck`: `tsc -b` across both tsconfig projects
 
+## Design system
+
+All visual tokens live in `src/index.css` (Tailwind v4 `@theme`). The look is calm and minimal: neutral greys, **one** accent colour (a calm blue), thin borders, soft shadows, plenty of whitespace.
+
+**Rules for every component:**
+
+- **Use tokens only.** No hex, `rgb()`, `oklch()` or named colours in `.tsx`/`.css`, and no arbitrary values (`bg-[#…]`, `p-[13px]`, `text-[15px]`, `rounded-[6px]`). Colour literals may only appear in the primitives block of `src/index.css`. If a value is missing, add a token there first. Don't inline it.
+- **Use semantic colour utilities, not palette steps.** Tailwind's default palette is reset (`--color-*: initial`), so `bg-gray-200`, `text-blue-600`, `bg-red-500`, etc. **don't exist** and silently produce no CSS. The grey/accent/danger scales (`--gray-*`, `--accent-*`, `--danger-*`) are primitives for `index.css` only; don't use `var(--gray-500)` in components.
+- **Don't write `dark:` colour overrides.** Semantic tokens switch automatically in dark mode. Use `dark:` only for non-colour tweaks, and rarely.
+- **One accent.** Use `accent` only for the primary action, checked/active state, focus, and AI-suggestion highlights. `danger` is only for error states (e.g. the 502 "AI request failed" message). Don't add new hues.
+
+**Colour tokens** (use as `bg-*`, `text-*`, `border-*`, `ring-*`, `outline-*`, `fill-*`, `divide-*`):
+
+| Token | Use for |
+|---|---|
+| `surface` | page background |
+| `surface-raised` | cards, list container, inputs, popovers |
+| `surface-muted` | row hover, chips, subtle fills, disabled backgrounds |
+| `fg` | primary text |
+| `fg-muted` | secondary text, descriptions, tips |
+| `fg-subtle` | placeholders, meta text, completed (struck-through) to-dos |
+| `border` | dividers, card outlines |
+| `border-strong` | input outlines, hover borders |
+| `accent` / `accent-hover` | primary button background, checked checkbox |
+| `accent-fg` | text/icons on `bg-accent` |
+| `accent-subtle` | tinted background (e.g. the AI suggestion panel) |
+| `accent-text` | links and accent-coloured text on surfaces |
+| `danger` / `danger-subtle` | error text/border / error background |
+
+Every text token passes WCAG AA (≥4.5:1) on `surface`, `surface-raised` and `surface-muted` in both themes. Keep that true when you change the primitives.
+
+**Type scale:** `text-xs` 12 · `text-sm` 14 · `text-base` 16 (body default) · `text-lg` 18 · `text-xl` 20 · `text-2xl` 24 · `text-3xl` 30. Each size carries its own line-height. Larger sizes (`text-4xl`+) are removed. Weights: `font-normal` for body, `font-medium` for labels/buttons, `font-semibold` for headings. Fonts: `font-sans` (system stack, the default) and `font-mono`.
+
+**Spacing:** 4px grid via `--spacing: 0.25rem` (`p-1` = 4px, `p-4` = 16px). Stick to steps `0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16`. Use `max-w-app` (40rem) for the main column.
+
+**Radius:** `rounded-sm` (4px: chips, checkboxes) · `rounded-md` (8px: buttons, inputs) · `rounded-lg` (12px: cards, list container) · `rounded-xl` (16px: dialogs) · `rounded-full` (pills, avatars). Other radius sizes are removed.
+
+**Shadows:** only `shadow-sm` (cards) and `shadow-md` (popovers/dialogs). Prefer a `border` over a shadow.
+
+**Focus:** a global `:focus-visible` outline (2px accent, 2px offset) is set in the base layer. Don't remove outlines. If a component needs a custom ring, use `focus-visible:outline-accent`.
+
+**Dark mode:** follows the OS (`prefers-color-scheme`) by default. Setting `data-theme="dark"` or `data-theme="light"` on `<html>` forces a theme. The custom `dark:` variant respects both. To change a colour, re-point the semantic variable in both the light block and the `@variant dark` block in `index.css`. Never change it per component.
+
+Example: `<button className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover disabled:bg-surface-muted disabled:text-fg-subtle">`
+
 ## Architecture
 
 The app has two processes that run side by side in development:
 
-- **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`; there is no tailwind config file. `src/App.tsx` is still the Vite starter template and hasn't been built out yet.
+- **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`, which also holds the design tokens (`@theme`); there is no tailwind config file. `src/App.tsx` is still the Vite starter template and hasn't been built out yet. `src/App.css` is part of that starter and doesn't follow the design system, so delete it when building the real UI and don't copy its patterns.
 - **API** (`server/index.ts`): an Express 5 server on port 3001. It exposes `POST /api/suggest`, which takes `{ description }` and calls the OpenAI **Responses API** (`openai.responses.parse`) with a Zod schema (`zodTextFormat`) to get structured output: `{ improvedName, tips[], category }`. The app's purpose is AI-assisted to-do item improvement.
 - **Proxy:** in `vite.config.ts`, Vite proxies `/api` to `http://localhost:3001`. Frontend code should call relative `/api/...` URLs so the OpenAI key never reaches the browser.
 

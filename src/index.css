@@ -1,1 +1,202 @@
 @import "tailwindcss";
+
+/*
+ * Design system
+ * -------------
+ * Layer 1 — primitives (:root, below): the raw grey + accent + danger scales.
+ *   These are the ONLY place literal colour values may appear in the app.
+ *   They are plain CSS variables, not Tailwind theme keys, so they do not
+ *   generate utilities (no `bg-gray-200`) and cannot leak into components.
+ *
+ * Layer 2 — semantic tokens (@theme inline): what components use
+ *   (`bg-surface`, `text-fg-muted`, `bg-accent`, ...). Each one points at a
+ *   primitive and is re-pointed for dark mode, so components never need
+ *   `dark:` colour overrides.
+ *
+ * Tailwind's default colour, type, radius and shadow scales are reset with
+ * `initial`, so only the tokens defined here exist as utilities.
+ */
+
+/* Dark mode follows the OS, unless <html data-theme="light|dark"> overrides it. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme="light"], [data-theme="light"] *)) {
+      @slot;
+    }
+  }
+}
+
+@theme {
+  /* Fonts */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /* Type scale (~1.125 ratio) — size / line-height pairs */
+  --text-*: initial;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+
+  /* Spacing: 4px grid. `p-1` = 4px, `p-4` = 16px, `gap-6` = 24px, ... */
+  --spacing: 0.25rem;
+
+  /* Layout widths (`max-w-app`) */
+  --container-app: 40rem;
+
+  /* Radius */
+  --radius-*: initial;
+  --radius-sm: 0.25rem; /* 4px — chips, badges, checkboxes */
+  --radius-md: 0.5rem; /* 8px — inputs, buttons */
+  --radius-lg: 0.75rem; /* 12px — cards, list containers */
+  --radius-xl: 1rem; /* 16px — dialogs, large panels */
+
+  /* Motion */
+  --default-transition-duration: 150ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme inline {
+  --color-*: initial;
+
+  /* Surfaces */
+  --color-surface: var(--surface); /* page background */
+  --color-surface-raised: var(--surface-raised); /* cards, inputs, popovers */
+  --color-surface-muted: var(--surface-muted); /* hover rows, chips, subtle fills */
+
+  /* Text */
+  --color-fg: var(--fg); /* primary text */
+  --color-fg-muted: var(--fg-muted); /* secondary text, descriptions */
+  --color-fg-subtle: var(--fg-subtle); /* placeholders, meta, completed items */
+
+  /* Borders */
+  --color-border: var(--border); /* dividers, card outlines */
+  --color-border-strong: var(--border-strong); /* input outlines, hover borders */
+
+  /* Accent — the single brand colour */
+  --color-accent: var(--accent); /* primary buttons, checked state */
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg); /* text/icons on bg-accent */
+  --color-accent-subtle: var(--accent-subtle); /* tinted backgrounds (AI suggestion panel) */
+  --color-accent-text: var(--accent-text); /* links, accent text on surfaces */
+
+  /* Status — errors only (e.g. the 502 "AI request failed" state) */
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+
+  /* Shadows are inlined so the shadow colour resolves per theme. */
+  --shadow-*: initial;
+  --shadow-sm: 0 1px 2px 0 var(--shadow-color);
+  --shadow-md: 0 4px 12px -2px var(--shadow-color), 0 2px 4px -2px var(--shadow-color);
+}
+
+@layer base {
+  :root {
+    /* Primitives: neutral grey */
+    --gray-0: oklch(1 0 0);
+    --gray-50: oklch(0.985 0 0);
+    --gray-100: oklch(0.967 0 0);
+    --gray-200: oklch(0.922 0 0);
+    --gray-300: oklch(0.87 0 0);
+    --gray-400: oklch(0.708 0 0);
+    --gray-500: oklch(0.54 0 0);
+    --gray-600: oklch(0.439 0 0);
+    --gray-700: oklch(0.371 0 0);
+    --gray-800: oklch(0.269 0 0);
+    --gray-900: oklch(0.205 0 0);
+    --gray-950: oklch(0.145 0 0);
+
+    /* Primitives: accent (calm blue, hue 245) */
+    --accent-50: oklch(0.97 0.014 245);
+    --accent-100: oklch(0.935 0.03 245);
+    --accent-200: oklch(0.88 0.055 245);
+    --accent-300: oklch(0.81 0.085 245);
+    --accent-400: oklch(0.72 0.11 245);
+    --accent-500: oklch(0.62 0.125 245);
+    --accent-600: oklch(0.52 0.12 245);
+    --accent-700: oklch(0.45 0.105 245);
+    --accent-800: oklch(0.38 0.085 245);
+    --accent-900: oklch(0.31 0.065 245);
+    --accent-950: oklch(0.25 0.05 245);
+
+    /* Primitives: danger (status only, not a second accent) */
+    --danger-50: oklch(0.97 0.015 25);
+    --danger-400: oklch(0.71 0.15 25);
+    --danger-600: oklch(0.55 0.19 25);
+    --danger-700: oklch(0.48 0.17 25);
+    --danger-950: oklch(0.26 0.07 25);
+
+    /* Semantic mapping — light (default) */
+    color-scheme: light;
+    --surface: var(--gray-50);
+    --surface-raised: var(--gray-0);
+    --surface-muted: var(--gray-100);
+    --fg: var(--gray-900);
+    --fg-muted: var(--gray-600);
+    --fg-subtle: var(--gray-500);
+    --border: var(--gray-200);
+    --border-strong: var(--gray-300);
+    --accent: var(--accent-600);
+    --accent-hover: var(--accent-700);
+    --accent-fg: var(--gray-0);
+    --accent-subtle: var(--accent-50);
+    --accent-text: var(--accent-700);
+    --danger: var(--danger-600);
+    --danger-subtle: var(--danger-50);
+    --shadow-color: oklch(0 0 0 / 0.06);
+
+    /* Semantic mapping — dark (same rules as the `dark:` variant) */
+    @variant dark {
+      color-scheme: dark;
+      --surface: var(--gray-950);
+      --surface-raised: var(--gray-900);
+      --surface-muted: var(--gray-800);
+      --fg: var(--gray-50);
+      --fg-muted: var(--gray-300);
+      --fg-subtle: var(--gray-400);
+      --border: var(--gray-800);
+      --border-strong: var(--gray-700);
+      --accent: var(--accent-400);
+      --accent-hover: var(--accent-300);
+      --accent-fg: var(--gray-950);
+      --accent-subtle: var(--accent-950);
+      --accent-text: var(--accent-300);
+      --danger: var(--danger-400);
+      --danger-subtle: var(--danger-950);
+      --shadow-color: oklch(0 0 0 / 0.4);
+    }
+  }
+
+  body {
+    @apply bg-surface font-sans text-base text-fg antialiased;
+  }
+
+  ::placeholder {
+    @apply text-fg-subtle;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  ::selection {
+    @apply bg-accent-subtle text-fg;
+  }
+}
