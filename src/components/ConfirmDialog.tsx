@@ -57,9 +57,12 @@ function ConfirmDialog({ title, children, confirmLabel, onConfirm, onCancel }: C
           <h2 id={titleId} className="text-lg font-semibold text-fg">
             {title}
           </h2>
-          <p id={descriptionId} className="min-w-0 break-words text-sm text-fg-muted">
+          <div
+            id={descriptionId}
+            className="flex min-w-0 flex-col gap-1 break-words text-sm text-fg-muted"
+          >
             {children}
-          </p>
+          </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button

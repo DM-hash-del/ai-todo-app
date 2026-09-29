@@ -11,8 +11,8 @@ function Header() {
           <CheckIcon />
         </span>
         <div>
-          <h1 className="text-lg font-semibold">To-do</h1>
-          <p className="text-xs text-fg-muted">Write it down, then make it better.</p>
+          <h1 className="text-lg font-semibold">AI enhanced task list</h1>
+          <p className="text-xs text-fg-muted">write it down, then let AI make it better.</p>
         </div>
       </div>
     </header>

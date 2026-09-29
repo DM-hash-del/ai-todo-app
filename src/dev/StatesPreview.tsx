@@ -136,7 +136,8 @@ function StatesPreview() {
           onConfirm={() => setConfirmOpen(false)}
           onCancel={() => setConfirmOpen(false)}
         >
-          “email landlord” isn’t done yet. This can’t be undone.
+          <p>“email landlord” isn’t done yet.</p>
+          <p className="underline">This can’t be undone.</p>
         </ConfirmDialog>
       )}
     </div>

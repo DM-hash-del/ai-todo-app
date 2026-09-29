@@ -150,7 +150,8 @@ function App() {
           onConfirm={confirmDelete}
           onCancel={cancelDelete}
         >
-          “{pendingDelete.name}” isn’t done yet. This can’t be undone.
+          <p>“{pendingDelete.name}” isn’t done yet.</p>
+          <p className="underline">This can’t be undone.</p>
         </ConfirmDialog>
       )}
     </div>
