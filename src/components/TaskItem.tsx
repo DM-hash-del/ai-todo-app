@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { SuggestionChoice, SuggestionState, Task } from '../types'
 import { ChevronDownIcon, CloseIcon, SparkleIcon } from './icons'
 import SuggestionPanel from './SuggestionPanel'
+import Tooltip from './Tooltip'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -37,11 +38,12 @@ function TaskItem({
   const isLoading = suggestion?.status === 'loading'
   const showImprove = onSuggest && !task.done
   const tips = task.tips ?? []
-  // Kept tips start collapsed. This is view state only, so it isn't saved.
-  const [tipsOpen, setTipsOpen] = useState(false)
+  // Details (kept tips and the created time) start collapsed. View state only, so it isn't saved.
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const nameId = `task-${task.id}-name`
   const categoryId = `task-${task.id}-category`
-  const tipsId = `task-${task.id}-tips`
+  const detailsId = `task-${task.id}-details`
+  const detailsWhat = tips.length > 0 ? 'this task’s tips and when it was created' : 'when this task was created'
 
   // Panel buttons unmount when the suggestion state changes, so move focus
   // back onto the row first. Otherwise keyboard focus falls back to <body>.
@@ -87,60 +89,83 @@ function TaskItem({
               )}
             </span>
           </label>
-          {tips.length > 0 && (
-            <button
-              type="button"
-              aria-expanded={tipsOpen}
-              aria-controls={tipsId}
-              onClick={() => setTipsOpen((open) => !open)}
-              aria-label={`Tips for "${task.name}"`}
-              className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
-            >
-              <span className="hidden sm:inline">Tips</span>
-              <ChevronDownIcon
-                className={`size-4 transition-transform duration-200 ease-out motion-reduce:transition-none sm:size-3.5 ${tipsOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-          )}
+          <Tooltip text={`${detailsOpen ? 'Hide' : 'Show'} ${detailsWhat}`}>
+            {(tooltipId) => (
+              <button
+                type="button"
+                aria-expanded={detailsOpen}
+                aria-controls={detailsId}
+                aria-describedby={tooltipId}
+                onClick={() => setDetailsOpen((open) => !open)}
+                aria-label={`Details for "${task.name}"`}
+                className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
+              >
+                <span className="hidden sm:inline">Details</span>
+                <ChevronDownIcon
+                  className={`size-4 transition-transform duration-200 ease-out motion-reduce:transition-none sm:size-3.5 ${detailsOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+            )}
+          </Tooltip>
           {showImprove && (
-            <button
-              ref={improveRef}
-              type="button"
-              // aria-disabled rather than disabled: a disabled button drops keyboard focus.
-              aria-disabled={isLoading}
-              onClick={() => !isLoading && onSuggest(task.id)}
-              aria-label={isLoading ? `Improving "${task.name}"…` : `Improve "${task.name}" with AI`}
-              className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-accent-text transition-colors hover:bg-accent-subtle aria-disabled:cursor-wait aria-disabled:text-fg-subtle aria-disabled:hover:bg-transparent"
+            <Tooltip
+              text={
+                isLoading
+                  ? 'Waiting for the AI suggestion'
+                  : 'Ask AI for a clearer name, a category and tips'
+              }
             >
-              <SparkleIcon className="size-4 sm:size-3.5" />
-              <span className="hidden sm:inline">{isLoading ? 'Improving…' : 'Improve'}</span>
-            </button>
+              {(tooltipId) => (
+                <button
+                  ref={improveRef}
+                  type="button"
+                  // aria-disabled rather than disabled: a disabled button drops keyboard focus.
+                  aria-disabled={isLoading}
+                  aria-describedby={tooltipId}
+                  onClick={() => !isLoading && onSuggest(task.id)}
+                  aria-label={
+                    isLoading ? `Improving "${task.name}"…` : `Improve "${task.name}" with AI`
+                  }
+                  className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-accent-text transition-colors hover:bg-accent-subtle aria-disabled:cursor-wait aria-disabled:text-fg-subtle aria-disabled:hover:bg-transparent"
+                >
+                  <SparkleIcon className="size-4 sm:size-3.5" />
+                  <span className="hidden sm:inline">{isLoading ? 'Improving…' : 'Improve'}</span>
+                </button>
+              )}
+            </Tooltip>
           )}
-          <button
-            id={`task-${task.id}-delete`}
-            type="button"
-            onClick={() => onDelete(task.id)}
-            aria-label={`Delete "${task.name}"`}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-colors hover:bg-danger-subtle hover:text-danger"
+          <Tooltip
+            text={task.done ? 'Delete this task' : 'Delete this task (asks you to confirm first)'}
           >
-            <CloseIcon />
-          </button>
+            {(tooltipId) => (
+              <button
+                id={`task-${task.id}-delete`}
+                type="button"
+                aria-describedby={tooltipId}
+                onClick={() => onDelete(task.id)}
+                aria-label={`Delete "${task.name}"`}
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-colors hover:bg-danger-subtle hover:text-danger"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </Tooltip>
         </div>
-        {tips.length > 0 && (
-          // Stays mounted so it can animate open and closed (grid rows 0fr <-> 1fr).
-          // While closed it's inert and hidden from assistive tech.
-          <div
-            id={tipsId}
-            inert={!tipsOpen}
-            aria-hidden={!tipsOpen}
-            className={`grid transition-all duration-200 ease-out motion-reduce:transition-none ${
-              tipsOpen ? 'grid-rows-expanded opacity-100' : 'grid-rows-collapsed opacity-0'
-            }`}
-          >
-            <div className="flex min-h-0 flex-col gap-1 overflow-hidden">
+        {/* Stays mounted so it can animate open and closed (grid rows 0fr <-> 1fr).
+            While closed it's inert and hidden from assistive tech. */}
+        <div
+          id={detailsId}
+          inert={!detailsOpen}
+          aria-hidden={!detailsOpen}
+          className={`grid transition-all duration-200 ease-out motion-reduce:transition-none ${
+            detailsOpen ? 'grid-rows-expanded opacity-100' : 'grid-rows-collapsed opacity-0'
+          }`}
+        >
+          <div className="flex min-h-0 flex-col gap-1 overflow-hidden pt-2 pb-1">
+            {tips.length > 0 && (
               <ul
                 aria-label={`Tips for "${task.name}"`}
-                className="mt-2 flex list-disc flex-col gap-1 pl-12 text-xs text-fg-muted marker:text-fg-subtle"
+                className="flex list-disc flex-col gap-1 pl-12 text-xs text-fg-muted marker:text-fg-subtle"
               >
                 {tips.map((tip, index) => (
                   <li key={index} className="break-words">
@@ -148,14 +173,17 @@ function TaskItem({
                   </li>
                 ))}
               </ul>
-              {task.createdAt && (
-                <p className="pr-1 pb-1 text-right text-xs font-light text-fg-subtle">
-                  <time dateTime={task.createdAt}>{formatCreated(task.createdAt)}</time>
-                </p>
+            )}
+            <p className="pr-1 text-right text-xs font-light text-fg-subtle">
+              {task.createdAt ? (
+                <time dateTime={task.createdAt}>{formatCreated(task.createdAt)}</time>
+              ) : (
+                // Tasks saved before creation times were recorded.
+                'Created: unknown'
               )}
-            </div>
+            </p>
           </div>
-        )}
+        </div>
       </div>
       {suggestion && (
         <div className="pb-1 pl-8">
