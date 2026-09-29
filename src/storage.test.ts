@@ -72,6 +72,24 @@ describe('loadState', () => {
     expect(loadState()).toEqual({ tasks: [task], suggestions: {} })
   })
 
+  it('round-trips the creation time and drops a malformed one', () => {
+    const createdAt = '2026-11-09T15:45:00.000Z'
+    saveState([{ id: 'a', name: 'Milk', done: false, createdAt }], {})
+    expect(loadState().tasks).toEqual([{ id: 'a', name: 'Milk', done: false, createdAt }])
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { id: 'b', name: 'Number', done: false, createdAt: 123 },
+        { id: 'c', name: 'Garbage', done: false, createdAt: 'not a date' },
+      ]),
+    )
+    expect(loadState().tasks).toEqual([
+      { id: 'b', name: 'Number', done: false },
+      { id: 'c', name: 'Garbage', done: false },
+    ])
+  })
+
   it('drops a malformed category or tips list but keeps the task', () => {
     localStorage.setItem(
       STORAGE_KEY,

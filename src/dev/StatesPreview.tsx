@@ -24,6 +24,28 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
     task: { id: 'default', name: 'email landlord', done: false },
   },
   {
+    title: 'Details: tips and created time',
+    note: 'Details (always shown) animates open to the kept tips, with the created time dimmed at the bottom right in the user’s local time. Hover or focus Details, Improve or Delete for a tooltip; Escape hides it.',
+    task: {
+      id: 'created',
+      name: 'Book dentist appointment',
+      done: false,
+      category: 'Health',
+      tips: ['Check your calendar for a free morning', 'Have your insurance number ready'],
+      createdAt: new Date(2026, 10, 9, 15, 45).toISOString(),
+    },
+  },
+  {
+    title: 'Details: created time only',
+    note: 'With no kept tips, Details shows just the created time. Tasks saved before it was recorded say "Created: unknown".',
+    task: {
+      id: 'created-only',
+      name: 'Water the plants',
+      done: false,
+      createdAt: new Date(2026, 8, 29, 8, 5).toISOString(),
+    },
+  },
+  {
     title: 'Completed',
     note: 'Checked tasks are struck through, and the Improve action is hidden.',
     task: { id: 'done', name: 'Buy milk', done: true },
@@ -41,7 +63,7 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
   },
   {
     title: 'Kept category only',
-    note: 'After "Use this name": the category comes with the name, so there is no Tips button.',
+    note: 'After "Use this name": the category comes with the name, so Details has no tips (only the created time, here unknown).',
     task: { id: 'kept-name', name: 'Call Mum this evening', done: false, category: 'Personal' },
   },
   {

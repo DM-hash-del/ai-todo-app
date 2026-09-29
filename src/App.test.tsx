@@ -50,8 +50,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(screen.getByRole('checkbox', { name: 'Second' })).toHaveFocus()
 
-    // Tab past the Improve button to Delete, then Tab from Cancel to confirm.
-    await user.keyboard('{Tab}{Tab}{Enter}')
+    // Tab past Details and Improve to Delete, then Tab from Cancel to confirm.
+    await user.keyboard('{Tab}{Tab}{Tab}{Enter}')
     await user.keyboard('{Tab}{Enter}')
     expect(input).toHaveFocus()
   })
@@ -178,6 +178,21 @@ describe('App persistence', () => {
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
   })
 
+  it('records and shows when a task was created', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 9, 15, 45))
+    try {
+      const user = userEvent.setup()
+      render(<App />)
+      await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+      await user.click(screen.getByRole('button', { name: 'Details for "Buy milk"' }))
+      expect(screen.getByText('Created: 09.11.26 at 15:45')).toBeInTheDocument()
+      expect(stored()[0].createdAt).toBe(new Date(2026, 10, 9, 15, 45).toISOString())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renames the task and stops saving the suggestion once it is accepted', async () => {
     const user = userEvent.setup()
     seed([{ id: '1', name: 'milk', done: false, suggestion }])
@@ -207,7 +222,7 @@ describe('App persistence', () => {
 
     const checkbox = screen.getByRole('checkbox', { name: suggestion.improvedName })
     expect(checkbox).toHaveAccessibleDescription('Shopping')
-    const toggle = screen.getByRole('button', { name: `Tips for "${suggestion.improvedName}"` })
+    const toggle = screen.getByRole('button', { name: `Details for "${suggestion.improvedName}"` })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await user.click(toggle)
     expect(screen.getByText('Check the fridge first')).toBeInTheDocument()
@@ -313,7 +328,8 @@ describe('App AI suggestions', () => {
     expect(screen.getByRole('checkbox', { name: suggestion.improvedName })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
     // The category comes with the name; the tips don't.
-    expect(screen.queryByRole('button', { name: /tips for/i })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /details for/i }))
+    expect(screen.queryByRole('list', { name: /tips for/i })).not.toBeInTheDocument()
     expect(stored()).toEqual([
       { id: '1', name: suggestion.improvedName, done: false, category: 'Shopping' },
     ])

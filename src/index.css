@@ -110,6 +110,16 @@
   --shadow-md: 0 4px 12px -2px var(--shadow-color), 0 2px 4px -2px var(--shadow-color);
 }
 
+/* Collapsible panels (e.g. a task's tips): transition `grid-template-rows` between
+ * these to animate to and from the content's natural height. The child needs
+ * `min-h-0 overflow-hidden`. */
+@utility grid-rows-collapsed {
+  grid-template-rows: 0fr;
+}
+@utility grid-rows-expanded {
+  grid-template-rows: 1fr;
+}
+
 @layer base {
   :root {
     /* Primitives: neutral grey */

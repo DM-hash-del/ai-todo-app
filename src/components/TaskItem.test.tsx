@@ -17,6 +17,78 @@ function renderItem(overrides: Partial<ComponentProps<typeof TaskItem>> = {}) {
 }
 
 describe('TaskItem', () => {
+  it('shows when the task was created at the bottom of the details, in local time', async () => {
+    const createdAt = new Date(2026, 10, 9, 15, 45).toISOString()
+    renderItem({ task: { ...task, tips: ['Check the date'], createdAt } })
+    const time = screen.getByText('Created: 09.11.26 at 15:45')
+    const panel = document.getElementById('task-1-details')!
+    expect(panel).toContainElement(time)
+    expect(panel).toHaveAttribute('inert')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Details for "Buy milk"' }))
+    expect(panel).not.toHaveAttribute('inert')
+    expect(time).toHaveAttribute('datetime', createdAt)
+    expect(time.parentElement).toHaveClass('text-fg-subtle', 'font-light')
+    // Last thing in the panel, after the tips.
+    expect(panel.firstElementChild!.lastElementChild).toBe(time.parentElement)
+  })
+
+  it('shows only the created time in the details when there are no tips', async () => {
+    const createdAt = new Date(2026, 10, 9, 15, 45).toISOString()
+    renderItem({ task: { ...task, createdAt } })
+    await userEvent.click(screen.getByRole('button', { name: 'Details for "Buy milk"' }))
+    const panel = document.getElementById('task-1-details')!
+    expect(within(panel).queryByRole('list')).not.toBeInTheDocument()
+    expect(panel).toHaveTextContent(/^Created: 09\.11\.26 at 15:45$/)
+  })
+
+  it('says the created time is unknown for tasks saved before it was recorded', () => {
+    renderItem()
+    expect(document.getElementById('task-1-details')).toHaveTextContent('Created: unknown')
+  })
+
+  it('explains each button in a tooltip on hover', async () => {
+    const user = userEvent.setup()
+    renderItem({ onSuggest: vi.fn() })
+    const cases = [
+      ['Details for "Buy milk"', 'Show when this task was created'],
+      ['Improve "Buy milk" with AI', 'Ask AI for a clearer name, a category and tips'],
+      ['Delete "Buy milk"', 'Delete this task (asks you to confirm first)'],
+    ]
+    for (const [name, tip] of cases) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toHaveAccessibleDescription(tip)
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+      await user.hover(button)
+      expect(screen.getByRole('tooltip')).toHaveTextContent(tip)
+      await user.unhover(button)
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    }
+  })
+
+  it('shows the tooltip on keyboard focus and hides it on Escape', async () => {
+    const user = userEvent.setup()
+    renderItem()
+    await user.tab()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Details for "Buy milk"' })).toHaveFocus()
+    expect(screen.getByRole('tooltip')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('updates the details tooltip once the details are open', async () => {
+    renderItem({ task: { ...task, tips: ['Check the date'] } })
+    const toggle = screen.getByRole('button', { name: 'Details for "Buy milk"' })
+    expect(toggle).toHaveAccessibleDescription(
+      'Show this task’s tips and when it was created',
+    )
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAccessibleDescription(
+      'Hide this task’s tips and when it was created',
+    )
+  })
+
   it('renders the task name as the checkbox label', () => {
     renderItem()
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).not.toBeChecked()
@@ -126,42 +198,44 @@ describe('TaskItem', () => {
       expect(screen.getByText('Errands')).toBeInTheDocument()
     })
 
-    it('collapses tips by default and toggles them', async () => {
+    it('collapses details by default and toggles the tips', async () => {
       renderItem({ task: kept })
-      const toggle = screen.getByRole('button', { name: 'Tips for "Buy milk"' })
+      const toggle = screen.getByRole('button', { name: 'Details for "Buy milk"' })
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByText('Check the date')).not.toBeInTheDocument()
+      // Collapsed tips stay mounted (to animate) but are hidden and inert.
+      expect(screen.queryByRole('list', { name: 'Tips for "Buy milk"' })).not.toBeInTheDocument()
 
       await userEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'true')
       const list = screen.getByRole('list', { name: 'Tips for "Buy milk"' })
-      expect(toggle).toHaveAttribute('aria-controls', list.id)
+      expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toContainElement(list)
       expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(
         kept.tips,
       )
 
       await userEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByText('Check the date')).not.toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: 'Tips for "Buy milk"' })).not.toBeInTheDocument()
     })
 
-    it('puts the tips toggle just before Improve', () => {
+    it('puts the details toggle just before Improve', () => {
       renderItem({ task: kept, onSuggest: vi.fn() })
       expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
-        'Tips for "Buy milk"',
+        'Details for "Buy milk"',
         'Improve "Buy milk" with AI',
         'Delete "Buy milk"',
       ])
     })
 
-    it('keeps the tips toggle on completed tasks', () => {
+    it('keeps the details toggle on completed tasks', () => {
       renderItem({ task: { ...kept, done: true }, onSuggest: vi.fn() })
-      expect(screen.getByRole('button', { name: 'Tips for "Buy milk"' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Details for "Buy milk"' })).toBeInTheDocument()
     })
 
-    it('has no category chip or tips toggle when nothing was kept', () => {
+    it('has no category chip or tips list when nothing was kept, but keeps Details', async () => {
       renderItem({ task: { ...task, tips: [] } })
-      expect(screen.queryByRole('button', { name: /tips for/i })).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Details for "Buy milk"' }))
+      expect(screen.queryByRole('list', { name: /tips for/i })).not.toBeInTheDocument()
       expect(screen.getByRole('checkbox', { name: 'Buy milk' })).not.toHaveAccessibleDescription()
     })
   })
