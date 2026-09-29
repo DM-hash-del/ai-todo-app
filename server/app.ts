@@ -88,6 +88,7 @@ export function createApp(openai: OpenAI) {
     try {
       const response = await openai.responses.parse({
         model: process.env.OPENAI_MODEL!,
+        reasoning: { effort: 'none' },
         instructions:
           "You autocomplete to-do item names as the user types. Continue the partial text into a short, clear task name. " +
           "Return the whole name: it must start with exactly the text the user typed (same spelling, spacing and case), " +
