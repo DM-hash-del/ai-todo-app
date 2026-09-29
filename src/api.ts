@@ -1,6 +1,9 @@
 import { isSuggestion } from './storage'
 import type { SuggestionState } from './types'
 
+// Longest task name the API accepts (MAX_INPUT_LENGTH in server/app.ts); longer gets a 400.
+export const MAX_TASK_LENGTH = 200
+
 // Settled states only: the caller owns `loading`. Never throws.
 export type SuggestionResult = Exclude<SuggestionState, { status: 'loading' }>
 
@@ -39,7 +42,8 @@ export async function requestCompletion(text: string, signal?: AbortSignal): Pro
     const body: unknown = await res.json()
     if (typeof body !== 'object' || body === null) return null
     const { completion } = body as Record<string, unknown>
-    return typeof completion === 'string' ? completion : null
+    // Accepting a longer name would leave a task that Improve can't send.
+    return typeof completion === 'string' && completion.length <= MAX_TASK_LENGTH ? completion : null
   } catch {
     return null
   }

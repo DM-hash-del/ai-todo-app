@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
+import { MAX_TASK_LENGTH } from '../api'
 import { loadTypeAhead, saveTypeAhead } from '../storage'
 import { useTypeAhead } from '../useTypeAhead'
 import { CheckIcon } from './icons'
@@ -92,6 +93,7 @@ function AddTaskForm({ onAdd, preview }: AddTaskFormProps) {
             aria-autocomplete={suggestAsYouType ? 'inline' : undefined}
             placeholder="Add a task…"
             autoComplete="off"
+            maxLength={MAX_TASK_LENGTH}
             className="w-full rounded-md border border-border-strong bg-surface-raised px-3 py-2 text-sm text-fg shadow-sm"
           />
           {/* Grey type-ahead drawn over the input: an invisible copy of the typed text
