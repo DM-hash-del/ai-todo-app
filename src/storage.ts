@@ -19,8 +19,13 @@ function isStringArray(value: unknown): value is string[] {
 
 export function isSuggestion(value: unknown): value is Suggestion {
   if (typeof value !== 'object' || value === null) return false
-  const { improvedName, tips, category } = value as Record<string, unknown>
-  return typeof improvedName === 'string' && typeof category === 'string' && isStringArray(tips)
+  const { improvedName, tips, category, model } = value as Record<string, unknown>
+  return (
+    typeof improvedName === 'string' &&
+    typeof category === 'string' &&
+    (model === undefined || typeof model === 'string') &&
+    isStringArray(tips)
+  )
 }
 
 // Returns the task, or null if the required fields are malformed. A malformed

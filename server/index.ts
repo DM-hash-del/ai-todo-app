@@ -26,7 +26,10 @@ app.post("/api/suggest", async (req, res) => {
       input: description,
       text: { format: zodTextFormat(Suggestion, "suggestion") },
     });
-    res.json(response.output_parsed);
+    const parsed = response.output_parsed;
+    // Tag the suggestion with the model that actually answered (e.g. a dated
+    // snapshot of OPENAI_MODEL) so the UI can attribute it. null stays null.
+    res.json(parsed && { ...parsed, model: response.model });
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: "AI request failed" });

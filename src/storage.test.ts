@@ -51,6 +51,12 @@ describe('saveState', () => {
 describe('loadState', () => {
   const empty = { tasks: [], suggestions: {} }
 
+  it('keeps the model that generated a saved suggestion', () => {
+    const withModel = { ...suggestion, model: 'gpt-4o-mini-2024-07-18' }
+    saveState([{ id: 'a', name: 'Milk', done: false }], { a: { status: 'ready', suggestion: withModel } })
+    expect(loadState().suggestions).toEqual({ a: { status: 'ready', suggestion: withModel } })
+  })
+
   it('round-trips tasks and restores saved suggestions as ready', () => {
     saveState([{ id: 'a', name: 'Milk', done: false }], { a: { status: 'ready', suggestion } })
     expect(loadState()).toEqual({
