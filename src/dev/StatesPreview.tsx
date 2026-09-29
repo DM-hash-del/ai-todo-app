@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import AddTaskForm from '../components/AddTaskForm'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Header from '../components/Header'
 import TaskList from '../components/TaskList'
@@ -96,6 +97,20 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
     },
   },
   {
+    title: 'Suggestion with the same name',
+    note: 'The suggested name matches the task’s (ignoring case and spacing), e.g. one the type-ahead filled in, so "Use this name" and "Use both" are hidden and only the tips are offered. With no tips either, "Use this category" keeps just the category.',
+    task: { id: 'same-name', name: 'Book a dentist appointment', done: false },
+    suggestion: {
+      status: 'ready',
+      suggestion: {
+        improvedName: 'Book a dentist appointment',
+        tips: ['Check your calendar for a free morning', 'Have your insurance number ready'],
+        category: 'Health',
+        model: 'gpt-6-luna',
+      },
+    },
+  },
+  {
     title: 'No suggestion',
     note: 'A 200 with a null body: the model refused or had nothing to offer.',
     task: { id: 'empty', name: 'x', done: false },
@@ -130,6 +145,12 @@ function StatesPreview() {
         <p className="text-sm text-fg-muted">
           Component states preview (dev only). Toggle your OS theme to check dark mode.
         </p>
+        <Example
+          title="Type-ahead"
+          note="With “Suggest as I type” on, a pause of about a second fetches a completion, shown as grey text after the caret. Tab accepts it, Escape dismisses it, Enter adds only what was typed. Touch screens get a ✓ button instead of Tab."
+        >
+          <AddTaskForm onAdd={noop} preview={{ name: 'Buy mi', completion: 'Buy milk and eggs' }} />
+        </Example>
         {examples.map(({ title, note, task, suggestion }) => (
           <Example key={task.id} title={title} note={note}>
             <TaskList tasks={[task]} suggestions={{ [task.id]: suggestion }} {...handlers} />

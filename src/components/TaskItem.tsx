@@ -189,6 +189,7 @@ function TaskItem({
         <div className="pb-1 pl-8">
           <SuggestionPanel
             state={suggestion}
+            taskName={task.name}
             onAccept={(choice) => {
               refocusRow()
               onAcceptSuggestion?.(task.id, choice)

@@ -99,8 +99,8 @@ function App() {
         task.id === id
           ? {
               ...task,
-              name: choice === 'tips' ? task.name : improvedName,
-              tips: choice === 'name' ? task.tips : tips,
+              name: choice === 'name' || choice === 'both' ? improvedName : task.name,
+              tips: choice === 'tips' || choice === 'both' ? tips : task.tips,
               category: category.trim() || task.category,
             }
           : task,

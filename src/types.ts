@@ -27,4 +27,5 @@ export type SuggestionState =
   | { status: 'error' } // 502 / network failure, retryable
 
 // Which parts of a ready suggestion the user keeps. The category is kept with any of them.
-export type SuggestionChoice = 'name' | 'tips' | 'both'
+// 'category' keeps only the category: offered when the name is unchanged and there are no tips.
+export type SuggestionChoice = 'name' | 'tips' | 'both' | 'category'

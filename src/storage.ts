@@ -82,3 +82,22 @@ export function saveState(tasks: Task[], suggestions: Suggestions) {
     // Quota exceeded or storage unavailable: keep working in memory.
   }
 }
+
+// The "Suggest as I type" setting. Off by default, since every typing pause costs credits.
+export const TYPE_AHEAD_KEY = 'suggestAsYouType'
+
+export function loadTypeAhead(): boolean {
+  try {
+    return localStorage.getItem(TYPE_AHEAD_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+export function saveTypeAhead(enabled: boolean) {
+  try {
+    localStorage.setItem(TYPE_AHEAD_KEY, String(enabled))
+  } catch {
+    // Storage unavailable: the setting just won't survive a reload.
+  }
+}

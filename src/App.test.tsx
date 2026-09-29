@@ -371,6 +371,40 @@ describe('App AI suggestions', () => {
     ])
   })
 
+  it('offers only the tips when the suggested name matches the task name', async () => {
+    const user = userEvent.setup()
+    const sameName = { ...suggestion, improvedName: '  Milk ' }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(sameName)))
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    const region = await panel()
+    expect(within(region).queryByRole('button', { name: 'Use this name' })).not.toBeInTheDocument()
+    expect(within(region).queryByRole('button', { name: 'Use both' })).not.toBeInTheDocument()
+    await user.click(within(region).getByRole('button', { name: 'Use these tips' }))
+    expect(stored()).toEqual([
+      { id: '1', name: 'milk', done: false, category: 'Shopping', tips: suggestion.tips },
+    ])
+  })
+
+  it('keeps only the category with "Use this category"', async () => {
+    const user = userEvent.setup()
+    const categoryOnly = { improvedName: 'milk', tips: [], category: 'Shopping' }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(categoryOnly)))
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([{ id: '1', name: 'milk', done: false, tips: ['Earlier tip'] }]),
+    )
+    render(<App />)
+
+    await user.click(improve())
+    await user.click(within(await panel()).getByRole('button', { name: 'Use this category' }))
+    expect(stored()).toEqual([
+      { id: '1', name: 'milk', done: false, category: 'Shopping', tips: ['Earlier tip'] },
+    ])
+  })
+
   it('replaces kept tips and category when a later suggestion is used', async () => {
     const user = userEvent.setup()
     const next: Suggestion = {
