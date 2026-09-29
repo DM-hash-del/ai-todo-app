@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n web,api \"vite"\ \"tsx watch --env-file=.env server/index.ts\"",
+    "dev": "concurrently -n web,api \"vite\" \"tsx watch --env-file=.env server/index.ts\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
     "test": "vitest",
-    "typecheck": "tsx -b"
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
