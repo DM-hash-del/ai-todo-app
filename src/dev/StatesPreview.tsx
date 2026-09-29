@@ -1,0 +1,104 @@
+import type { ReactNode } from 'react'
+import Header from '../components/Header'
+import TaskList from '../components/TaskList'
+import type { SuggestionState, Task } from '../types'
+
+// Dev-only gallery of every TaskItem / TaskList state. Open http://localhost:5173/#states under `npm run dev`.
+// Stripped from production builds (see main.tsx).
+
+const noop = () => {}
+const handlers = {
+  onToggle: noop,
+  onDelete: noop,
+  onSuggest: noop,
+  onAcceptSuggestion: noop,
+  onDismissSuggestion: noop,
+}
+
+const examples: { title: string; note: string; task: Task; suggestion?: SuggestionState }[] = [
+  {
+    title: 'Default',
+    note: 'Idle: no suggestion requested. Hover or focus the row to see the hover state.',
+    task: { id: 'default', name: 'email landlord', done: false },
+  },
+  {
+    title: 'Completed',
+    note: 'Checked tasks are struck through, and the Improve action is hidden.',
+    task: { id: 'done', name: 'Buy milk', done: true },
+  },
+  {
+    title: 'Loading',
+    note: 'The request is in flight. The Improve button is disabled to prevent duplicate submits.',
+    task: { id: 'loading', name: 'plan trip', done: false },
+    suggestion: { status: 'loading' },
+  },
+  {
+    title: 'Suggestion',
+    note: 'A 200 response, shown inline below the item.',
+    task: { id: 'ready', name: 'gym', done: false },
+    suggestion: {
+      status: 'ready',
+      suggestion: {
+        improvedName: 'Do a 30-minute strength workout at the gym',
+        tips: ['Pack your bag the night before', 'Pick a fixed time slot', 'Log your sets'],
+        category: 'Health',
+      },
+    },
+  },
+  {
+    title: 'Suggestion without tips',
+    note: 'The tips array can be empty.',
+    task: { id: 'no-tips', name: 'call mum', done: false },
+    suggestion: {
+      status: 'ready',
+      suggestion: { improvedName: 'Call Mum this evening', tips: [], category: 'Personal' },
+    },
+  },
+  {
+    title: 'No suggestion',
+    note: 'A 200 with a null body: the model refused or had nothing to offer.',
+    task: { id: 'empty', name: 'x', done: false },
+    suggestion: { status: 'empty' },
+  },
+  {
+    title: 'Error',
+    note: 'A 502 or network failure. Retry sends the request again.',
+    task: { id: 'error', name: 'renew passport', done: false },
+    suggestion: { status: 'error' },
+  },
+]
+
+function Example({ title, note, children }: { title: string; note: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <div>
+        <h2 className="text-sm font-semibold text-fg">{title}</h2>
+        <p className="text-xs text-fg-muted">{note}</p>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function StatesPreview() {
+  return (
+    <div className="min-h-dvh">
+      <Header />
+      <main className="mx-auto flex w-full max-w-app flex-col gap-8 px-4 py-8">
+        <p className="text-sm text-fg-muted">
+          Component states preview (dev only). Toggle your OS theme to check dark mode.
+        </p>
+        {examples.map(({ title, note, task, suggestion }) => (
+          <Example key={task.id} title={title} note={note}>
+            <TaskList tasks={[task]} suggestions={{ [task.id]: suggestion }} {...handlers} />
+          </Example>
+        ))}
+        <Example title="Empty list" note="Shown when there are no tasks.">
+          <TaskList tasks={[]} onToggle={noop} onDelete={noop} />
+        </Example>
+      </main>
+    </div>
+  )
+}
+
+export default StatesPreview

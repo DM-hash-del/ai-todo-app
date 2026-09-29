@@ -15,6 +15,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm test`: Vitest in watch mode. Use `npx vitest run` for a single pass, `npx vitest run path/to/file.test.tsx` for one file, and `-t "name"` to filter by test name.
 - `npm run typecheck`: `tsc -b` across both tsconfig projects
 
+## Outstanding tasks
+
+Remove each item here once it's done.
+
+- [ ] **Save tasks to `localStorage`.** Tasks only live in React state in `src/App.tsx`, so a reload clears them. Load on startup and save on change. Wrap reads and writes in `try/catch` (storage can be unavailable or hold malformed JSON) and fall back to an empty list.
+- [ ] **Connect `/api/suggest` to the UI.** The UI states already exist (see "AI suggestion states" under Architecture). What's left is keeping a `suggestions` map in `App`, passing `onSuggest` / `onAcceptSuggestion` / `onDismissSuggestion` to `TaskList`, and making the request as the API contract below describes:
+  - check `res.ok` first: a failure maps to `error`, and a `null` body maps to `empty`;
+  - ignore clicks while a request is `loading`;
+  - accepting a suggestion renames the task;
+  - mock `fetch` in the tests.
+
 ## Design system
 
 All visual tokens live in `src/index.css` (Tailwind v4 `@theme`). The look is calm and minimal: neutral greys, **one** accent colour (a calm blue), thin borders, soft shadows, plenty of whitespace.
@@ -64,7 +75,9 @@ Example: `<button className="rounded-md bg-accent px-4 py-2 text-sm font-medium 
 
 The app has two processes that run side by side in development:
 
-- **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`, which also holds the design tokens (`@theme`); there is no tailwind config file. `src/App.tsx` owns the to-do list (`Task[]` in React state; the type is in `src/types.ts`) and lays out a full-width `Header` above a centred `max-w-app` column containing `AddTaskForm` and `TaskList`, which renders one `TaskItem` per task. Components live in `src/components/`, one per file, with tests next to them (`*.test.tsx`). Tasks aren't persisted yet, so a reload clears them, and the `/api/suggest` call isn't wired into the UI yet.
+- **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`, which also holds the design tokens (`@theme`); there is no tailwind config file. `src/App.tsx` owns the to-do list (`Task[]` in React state; the type is in `src/types.ts`) and lays out a full-width `Header` above a centred `max-w-app` column containing `AddTaskForm` and `TaskList`, which renders one `TaskItem` per task. Components live in `src/components/`, one per file, with tests next to them (`*.test.tsx`). Shared SVG icons are in `src/components/icons.tsx`; they use `currentColor`, so colour them with `text-*` tokens.
+  - **AI suggestion states:** `TaskItem` takes an optional `suggestion?: SuggestionState` (`src/types.ts`) and renders `SuggestionPanel` inline below the task. `undefined` means idle, then `loading` (pulsing skeleton, Improve button disabled), `ready` (improved name, category, tips, plus "Use this name" / Dismiss), `empty` (200 with a `null` body), and `error` (502 or network failure, with Retry). The Improve button only appears when `onSuggest` is passed, so it's hidden until the API is connected. `TaskList` passes these props through from a `suggestions` map keyed by task id.
+  - **States preview:** under `npm run dev`, open `http://localhost:5173/#states` to see every `TaskItem` state and the empty list together (`src/dev/StatesPreview.tsx`). It's dev-only and dropped from production builds. When you add a new state, add it there too.
 - **API** (`server/index.ts`): an Express 5 server on port 3001. It exposes `POST /api/suggest`, which takes `{ description }` and calls the OpenAI **Responses API** (`openai.responses.parse`) with a Zod schema (`zodTextFormat`) to get structured output: `{ improvedName, tips[], category }`. The app's purpose is AI-assisted to-do item improvement.
 - **Proxy:** in `vite.config.ts`, Vite proxies `/api` to `http://localhost:3001`. Frontend code should call relative `/api/...` URLs so the OpenAI key never reaches the browser.
 

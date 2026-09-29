@@ -1,0 +1,55 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+import type { SuggestionState } from '../types'
+import SuggestionPanel from './SuggestionPanel'
+
+function renderPanel(state: SuggestionState) {
+  const props = { state, onAccept: vi.fn(), onDismiss: vi.fn(), onRetry: vi.fn() }
+  render(<SuggestionPanel {...props} />)
+  return props
+}
+
+const suggestion = {
+  improvedName: 'Do a 30-minute strength workout',
+  tips: ['Pack your bag', 'Pick a time'],
+  category: 'Health',
+}
+
+describe('SuggestionPanel', () => {
+  it('announces the loading skeleton to screen readers', () => {
+    renderPanel({ status: 'loading' })
+    expect(screen.getByRole('status')).toHaveTextContent('Getting a suggestion…')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('shows the improved name, category and tips, and accepts or dismisses', async () => {
+    const { onAccept, onDismiss } = renderPanel({ status: 'ready', suggestion })
+    const panel = screen.getByRole('region', { name: 'AI suggestion' })
+    expect(panel).toHaveTextContent(suggestion.improvedName)
+    expect(panel).toHaveTextContent('Health')
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use this name' }))
+    expect(onAccept).toHaveBeenCalledWith(suggestion.improvedName)
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(onDismiss).toHaveBeenCalled()
+  })
+
+  it('renders a suggestion with no tips without an empty list', () => {
+    renderPanel({ status: 'ready', suggestion: { ...suggestion, tips: [] } })
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  })
+
+  it('shows a "no suggestion" state for a null response', () => {
+    renderPanel({ status: 'empty' })
+    expect(screen.getByRole('status')).toHaveTextContent(/no suggestion/i)
+  })
+
+  it('shows a retryable error', async () => {
+    const { onRetry } = renderPanel({ status: 'error' })
+    expect(screen.getByRole('alert')).toHaveTextContent(/couldn’t get a suggestion/i)
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onRetry).toHaveBeenCalled()
+  })
+})
