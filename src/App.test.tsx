@@ -47,11 +47,76 @@ describe('App', () => {
     await user.type(input, 'Second{Enter}')
 
     await user.click(screen.getByRole('button', { name: 'Delete "First"' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(screen.getByRole('checkbox', { name: 'Second' })).toHaveFocus()
 
-    // Tab past the Improve button to Delete.
+    // Tab past the Improve button to Delete, then Tab from Cancel to confirm.
     await user.keyboard('{Tab}{Tab}{Enter}')
+    await user.keyboard('{Tab}{Enter}')
     expect(input).toHaveFocus()
+  })
+
+  it('deletes a completed task without asking', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    await user.click(screen.getByRole('checkbox', { name: 'Buy milk' }))
+
+    await user.click(screen.getByRole('button', { name: 'Delete "Buy milk"' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
+  })
+
+  it('asks before deleting an unfinished task', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+
+    await user.click(screen.getByRole('button', { name: 'Delete "Buy milk"' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete task?' })
+    expect(dialog).toHaveAccessibleDescription(/“Buy milk” isn’t done yet/)
+    // Cancel is focused first so Enter can't delete by accident.
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
+  })
+
+  it('keeps the task and restores focus when the confirmation is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    const deleteButton = screen.getByRole('button', { name: 'Delete "Buy milk"' })
+
+    await user.click(deleteButton)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeInTheDocument()
+    expect(deleteButton).toHaveFocus()
+
+    await user.click(deleteButton)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeInTheDocument()
+    expect(deleteButton).toHaveFocus()
+  })
+
+  it('keeps Tab inside the confirmation', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+    await user.click(screen.getByRole('button', { name: 'Delete "Buy milk"' }))
+    const dialog = screen.getByRole('alertdialog')
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' })
+    const confirm = within(dialog).getByRole('button', { name: 'Delete' })
+
+    await user.tab()
+    expect(confirm).toHaveFocus()
+    await user.tab()
+    expect(cancel).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(confirm).toHaveFocus()
   })
 })
 
@@ -165,6 +230,7 @@ describe('App persistence', () => {
     render(<App />)
 
     await user.click(screen.getByRole('button', { name: 'Delete "milk"' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(stored()).toEqual([])
   })
 })
@@ -384,6 +450,7 @@ describe('App AI suggestions', () => {
 
     await user.click(improve())
     await user.click(screen.getByRole('button', { name: 'Delete "milk"' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
     respond(jsonResponse(suggestion))
 
     await waitFor(() => expect(stored()).toEqual([]))

@@ -106,6 +106,7 @@ function TaskItem({
           </button>
         )}
         <button
+          id={`task-${task.id}-delete`}
           type="button"
           onClick={() => onDelete(task.id)}
           aria-label={`Delete "${task.name}"`}
