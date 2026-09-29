@@ -19,11 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Remove each item here once it's done.
 
-- [ ] **Connect `/api/suggest` to the UI.** The UI states already exist (see "AI suggestion states" under Architecture), and `App` already keeps the `suggestions` map and handles Accept/Dismiss. What's left is an `onSuggest` handler passed to `TaskList` that sets `loading` and makes the request as the API contract below describes:
-  - check `res.ok` first: a failure maps to `error`, and a `null` body maps to `empty`;
-  - ignore clicks while a request is `loading`;
-  - accepting a suggestion renames the task;
-  - mock `fetch` in the tests.
+_None right now._
 
 ## Design system
 
@@ -82,7 +78,7 @@ Example: `<button className="rounded-md bg-accent px-4 py-2 text-sm font-medium 
 The app has two processes that run side by side in development:
 
 - **Frontend** (`src/`): React 19, Vite 8, and Tailwind v4. Tailwind is loaded through the `@tailwindcss/vite` plugin and `@import "tailwindcss"` in `src/index.css`, which also holds the design tokens (`@theme`); there is no tailwind config file. `src/App.tsx` owns the to-do list (`Task[]` in React state; the type is in `src/types.ts`) plus a `suggestions` map keyed by task id, and lays out a full-width `Header` above a centred `max-w-app` column containing `AddTaskForm` and `TaskList`, which renders one `TaskItem` per task. Components live in `src/components/`, one per file, with tests next to them (`*.test.tsx`). Shared SVG icons are in `src/components/icons.tsx`; they use `currentColor`, so colour them with `text-*` tokens.
-  - **AI suggestion states:** `TaskItem` takes an optional `suggestion?: SuggestionState` (`src/types.ts`) and renders `SuggestionPanel` inline below the task. `undefined` means idle, then `loading` (pulsing skeleton, Improve button disabled), `ready` (improved name, category, tips, plus "Use this name" / Dismiss), `empty` (200 with a `null` body), and `error` (502 or network failure, with Retry). The Improve button only appears when `onSuggest` is passed, so it's hidden until the API is connected. `TaskList` passes these props through from a `suggestions` map keyed by task id.
+  - **AI suggestion states:** `TaskItem` takes an optional `suggestion?: SuggestionState` (`src/types.ts`) and renders `SuggestionPanel` inline below the task. `undefined` means idle, then `loading` (pulsing skeleton, Improve button disabled), `ready` (improved name, category, tips, plus "Use this name" / Dismiss), `empty` (200 with a `null` body), and `error` (502 or network failure, with Retry). The Improve button only appears when `onSuggest` is passed. `TaskList` passes these props through from a `suggestions` map keyed by task id. `App.suggest` sets `loading`, calls `requestSuggestion` (`src/api.ts`, which checks `res.ok` and maps the response to `ready`/`empty`/`error`), ignores repeat clicks for an id already in flight, and drops a response whose task was deleted or dismissed meanwhile.
   - **Persistence:** `src/storage.ts` loads tasks from `localStorage` (key `tasks`) on first render and saves on every change. Each saved task may carry a `suggestion` (the raw API `Suggestion`), but only for `ready` suggestions that haven't been accepted or dismissed; they're restored as `ready`. Missing, corrupted or non-array data loads as an empty list, and individual malformed entries are skipped. The test setup clears `localStorage` before and after each test.
   - **States preview:** under `npm run dev`, open `http://localhost:5173/#states` to see every `TaskItem` state and the empty list together (`src/dev/StatesPreview.tsx`). It's dev-only and dropped from production builds. When you add a new state, add it there too.
 - **API** (`server/index.ts`): an Express 5 server on port 3001. It exposes `POST /api/suggest`, which takes `{ description }` and calls the OpenAI **Responses API** (`openai.responses.parse`) with a Zod schema (`zodTextFormat`) to get structured output: `{ improvedName, tips[], category }`. The app's purpose is AI-assisted to-do item improvement.

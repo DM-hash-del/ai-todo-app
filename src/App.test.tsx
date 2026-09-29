@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { STORAGE_KEY } from './storage'
 import type { StoredTask } from './storage'
@@ -49,7 +49,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Delete "First"' }))
     expect(screen.getByRole('checkbox', { name: 'Second' })).toHaveFocus()
 
-    await user.keyboard('{Tab}{Enter}')
+    // Tab past the Improve button to Delete.
+    await user.keyboard('{Tab}{Tab}{Enter}')
     expect(input).toHaveFocus()
   })
 })
@@ -145,5 +146,157 @@ describe('App persistence', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete "milk"' }))
     expect(stored()).toEqual([])
+  })
+})
+
+describe('App AI suggestions', () => {
+  const suggestion: Suggestion = {
+    improvedName: 'Buy 2L of semi-skimmed milk',
+    tips: ['Check the fridge first'],
+    category: 'Shopping',
+  }
+
+  function jsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Resolve the request by hand, so the loading state can be asserted.
+  function deferredFetch() {
+    let resolve!: (res: Response) => void
+    const fetchMock = vi.fn(() => new Promise<Response>((r) => (resolve = r)))
+    vi.stubGlobal('fetch', fetchMock)
+    return { fetchMock, respond: (res: Response) => resolve(res) }
+  }
+
+  function seedMilk() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{ id: '1', name: 'milk', done: false }]))
+  }
+
+  function stored(): StoredTask[] {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
+  }
+
+  const improve = () => screen.getByRole('button', { name: 'Improve "milk" with AI' })
+  const busy = () => screen.getByRole('button', { name: 'Improving "milk"…' })
+  const panel = () => screen.findByRole('region', { name: 'AI suggestion' })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('posts the task name, shows loading, then renders and saves the suggestion', async () => {
+    const user = userEvent.setup()
+    const { fetchMock, respond } = deferredFetch()
+    seedMilk()
+    const { unmount } = render(<App />)
+
+    await user.click(improve())
+    expect(fetchMock).toHaveBeenCalledWith('/api/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: 'milk' }),
+    })
+    expect(busy()).toHaveAttribute('aria-disabled', 'true')
+    // Loading isn't persisted.
+    expect(stored()).toEqual([{ id: '1', name: 'milk', done: false }])
+
+    respond(jsonResponse(suggestion))
+    const region = await panel()
+    expect(within(region).getByText(suggestion.improvedName)).toBeInTheDocument()
+    expect(within(region).getByText('Shopping')).toBeInTheDocument()
+    expect(within(region).getByText('Check the fridge first')).toBeInTheDocument()
+    expect(improve()).toHaveAttribute('aria-disabled', 'false')
+    expect(stored()).toEqual([{ id: '1', name: 'milk', done: false, suggestion }])
+
+    unmount()
+    render(<App />)
+    expect(within(await panel()).getByText(suggestion.improvedName)).toBeInTheDocument()
+  })
+
+  it('renames the task when the suggestion is accepted', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(suggestion)))
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    await user.click(within(await panel()).getByRole('button', { name: 'Use this name' }))
+    expect(screen.getByRole('checkbox', { name: suggestion.improvedName })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
+    expect(stored()).toEqual([{ id: '1', name: suggestion.improvedName, done: false }])
+  })
+
+  it('shows the empty state when the body is null', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(null)))
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    expect(await screen.findByText(/no suggestion for this one/i)).toBeInTheDocument()
+    expect(stored()).toEqual([{ id: '1', name: 'milk', done: false }])
+  })
+
+  it('shows a retryable error on a 502 and succeeds on retry', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: 'AI request failed' }, 502))
+      .mockResolvedValueOnce(jsonResponse(suggestion))
+    vi.stubGlobal('fetch', fetchMock)
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/couldn’t get a suggestion/i)
+    // The error body must never be treated as a suggestion.
+    expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
+
+    await user.click(within(alert).getByRole('button', { name: 'Retry' }))
+    expect(within(await panel()).getByText(suggestion.improvedName)).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the error state on a network failure', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('ignores clicks while a request is loading', async () => {
+    const user = userEvent.setup()
+    const { fetchMock, respond } = deferredFetch()
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    await user.click(busy())
+    await user.click(busy())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    respond(jsonResponse(suggestion))
+    expect(await panel()).toBeInTheDocument()
+  })
+
+  it('drops a response that arrives after its task was deleted', async () => {
+    const user = userEvent.setup()
+    const { respond } = deferredFetch()
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    await user.click(screen.getByRole('button', { name: 'Delete "milk"' }))
+    respond(jsonResponse(suggestion))
+
+    await waitFor(() => expect(stored()).toEqual([]))
+    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
   })
 })

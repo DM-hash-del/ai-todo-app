@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { requestSuggestion } from './api'
 import AddTaskForm from './components/AddTaskForm'
 import Header from './components/Header'
 import TaskList from './components/TaskList'
@@ -41,6 +42,26 @@ function App() {
     clearSuggestion(id)
   }
 
+  // Ids with a request in flight. A ref, not state, so a quick double click
+  // can't slip past before the `loading` render lands.
+  const inFlight = useRef(new Set<string>())
+
+  async function suggest(id: string) {
+    const task = tasks.find((t) => t.id === id)
+    if (!task || inFlight.current.has(id)) return
+    inFlight.current.add(id)
+    setSuggestions((current) => ({ ...current, [id]: { status: 'loading' } }))
+    try {
+      const result = await requestSuggestion(task.name)
+      // Only settle if still loading: a delete or dismiss meanwhile wins.
+      setSuggestions((current) =>
+        current[id]?.status === 'loading' ? { ...current, [id]: result } : current,
+      )
+    } finally {
+      inFlight.current.delete(id)
+    }
+  }
+
   // Accepting renames the task and drops the suggestion, so it isn't saved again.
   function acceptSuggestion(id: string, improvedName: string) {
     setTasks((current) =>
@@ -80,6 +101,7 @@ function App() {
             onToggle={toggleTask}
             onDelete={deleteTask}
             suggestions={suggestions}
+            onSuggest={suggest}
             onAcceptSuggestion={acceptSuggestion}
             onDismissSuggestion={clearSuggestion}
           />

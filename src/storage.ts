@@ -13,7 +13,7 @@ export type PersistedState = {
   suggestions: Suggestions
 }
 
-function isSuggestion(value: unknown): value is Suggestion {
+export function isSuggestion(value: unknown): value is Suggestion {
   if (typeof value !== 'object' || value === null) return false
   const { improvedName, tips, category } = value as Record<string, unknown>
   return (
