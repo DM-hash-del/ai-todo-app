@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { requestSuggestion } from './api'
 import AddTaskForm from './components/AddTaskForm'
+import ConfirmDialog from './components/ConfirmDialog'
 import Header from './components/Header'
 import TaskList from './components/TaskList'
 import { loadState, saveState } from './storage'
@@ -14,6 +15,9 @@ function App() {
   const [suggestions, setSuggestions] = useState<Suggestions>(initial.suggestions)
   const remaining = tasks.filter((task) => !task.done).length
   const focusAfterRender = useRef<string | null>(null)
+  // The unfinished task waiting on the delete confirmation, if any.
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const pendingDelete = tasks.find((task) => task.id === pendingDeleteId)
 
   function addTask(name: string) {
     setTasks((current) => [...current, { id: crypto.randomUUID(), name, done: false }])
@@ -40,6 +44,25 @@ function App() {
     focusAfterRender.current = neighbour ? `task-${neighbour.id}` : 'new-task'
     setTasks((current) => current.filter((task) => task.id !== id))
     clearSuggestion(id)
+  }
+
+  // Completed tasks go straight away; unfinished ones ask first.
+  function requestDelete(id: string) {
+    const task = tasks.find((t) => t.id === id)
+    if (!task) return
+    if (task.done) deleteTask(id)
+    else setPendingDeleteId(id)
+  }
+
+  function confirmDelete() {
+    if (pendingDeleteId) deleteTask(pendingDeleteId)
+    setPendingDeleteId(null)
+  }
+
+  function cancelDelete() {
+    // Hand focus back to the Delete button that opened the dialog.
+    if (pendingDeleteId) document.getElementById(`task-${pendingDeleteId}-delete`)?.focus()
+    setPendingDeleteId(null)
   }
 
   // Ids with a request in flight. A ref, not state, so a quick double click
@@ -112,7 +135,7 @@ function App() {
           <TaskList
             tasks={tasks}
             onToggle={toggleTask}
-            onDelete={deleteTask}
+            onDelete={requestDelete}
             suggestions={suggestions}
             onSuggest={suggest}
             onAcceptSuggestion={acceptSuggestion}
@@ -120,6 +143,17 @@ function App() {
           />
         </section>
       </main>
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete task?"
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        >
+          <p>“{pendingDelete.name}” isn’t done yet.</p>
+          <p className="underline">This can’t be undone.</p>
+        </ConfirmDialog>
+      )}
     </div>
   )
 }
