@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { requestCompletion } from './api'
 
 // Wait this long after the last keystroke before asking for a completion.
-export const TYPE_AHEAD_DELAY = 10
+export const TYPE_AHEAD_DELAY = 500
 // Ignore very short input: there's too little to go on.
 export const TYPE_AHEAD_MIN_LENGTH = 3
 
