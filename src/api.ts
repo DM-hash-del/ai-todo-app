@@ -23,3 +23,24 @@ export async function requestSuggestion(description: string): Promise<Suggestion
     return { status: 'error' }
   }
 }
+
+// Type-ahead for the new-task input. Resolves to the model's full task name
+// for `text`, or null for anything else (error, refusal, abort). Never throws:
+// the grey type-ahead text is optional, so failures are silent.
+export async function requestCompletion(text: string, signal?: AbortSignal): Promise<string | null> {
+  try {
+    const res = await fetch('/api/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal,
+    })
+    if (!res.ok) return null
+    const body: unknown = await res.json()
+    if (typeof body !== 'object' || body === null) return null
+    const { completion } = body as Record<string, unknown>
+    return typeof completion === 'string' ? completion : null
+  } catch {
+    return null
+  }
+}

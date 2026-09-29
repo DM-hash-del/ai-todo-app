@@ -7,7 +7,12 @@ type SuggestionPanelProps = {
   onAccept: (choice: SuggestionChoice) => void
   onDismiss: () => void
   onRetry: () => void
+  // The task's current name. When the suggestion matches it, the name options are hidden.
+  taskName?: string
 }
+
+// Same name apart from case and spacing, e.g. one the type-ahead already filled in.
+const normalise = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase()
 
 // 32px min height keeps panel buttons comfortable touch targets. The hover fill
 // is surface-raised so it shows on every panel background (muted, accent, danger).
@@ -26,11 +31,14 @@ type ReadySuggestionProps = {
   suggestion: Suggestion
   onAccept: (choice: SuggestionChoice) => void
   onDismiss: () => void
+  taskName?: string
 }
 
-function ReadySuggestion({ suggestion, onAccept, onDismiss }: ReadySuggestionProps) {
+function ReadySuggestion({ suggestion, onAccept, onDismiss, taskName }: ReadySuggestionProps) {
   const { improvedName, tips, category, model } = suggestion
   const hasTips = tips.length > 0
+  // Nothing to gain from "Use this name" when it's the name the task already has.
+  const sameName = taskName !== undefined && normalise(taskName) === normalise(improvedName)
   // Hover and focus are tracked apart, so moving the mouse away doesn't clear a keyboard preview.
   const [hovered, setHovered] = useState<SuggestionChoice | null>(null)
   const [focused, setFocused] = useState<SuggestionChoice | null>(null)
@@ -80,14 +88,18 @@ function ReadySuggestion({ suggestion, onAccept, onDismiss }: ReadySuggestionPro
         data-previewing={preview === 'both' || undefined}
         className={`flex flex-col gap-2 ${previewTarget} ${preview === 'both' ? previewOn : ''}`}
       >
-        <p
-          data-previewing={preview === 'name' || undefined}
-          className={`text-sm font-medium break-words text-fg ${previewTarget} ${
-            preview === 'name' ? previewOn : ''
-          }`}
-        >
-          {improvedName}
-        </p>
+        {sameName ? (
+          <p className="text-xs text-fg-muted">The name already looks clear.</p>
+        ) : (
+          <p
+            data-previewing={preview === 'name' || undefined}
+            className={`text-sm font-medium break-words text-fg ${previewTarget} ${
+              preview === 'name' ? previewOn : ''
+            }`}
+          >
+            {improvedName}
+          </p>
+        )}
         {hasTips && (
           <div
             data-previewing={preview === 'tips' || undefined}
@@ -102,10 +114,20 @@ function ReadySuggestion({ suggestion, onAccept, onDismiss }: ReadySuggestionPro
         )}
       </div>
       <div className="flex flex-wrap gap-2 pt-1">
-        {/* The fullest option is the primary action. Without tips, that's the name. */}
-        {choiceButton('name', 'Use this name', hasTips ? secondaryButton : primaryButton)}
-        {hasTips && choiceButton('tips', 'Use these tips', secondaryButton)}
-        {hasTips && choiceButton('both', 'Use both', primaryButton)}
+        {/* The fullest option is the primary action. Without tips, that's the name.
+            With the same name, only the tips (or failing that, the category) are left to keep. */}
+        {sameName ? (
+          <>
+            {hasTips && choiceButton('tips', 'Use these tips', primaryButton)}
+            {!hasTips && category && choiceButton('category', 'Use this category', primaryButton)}
+          </>
+        ) : (
+          <>
+            {choiceButton('name', 'Use this name', hasTips ? secondaryButton : primaryButton)}
+            {hasTips && choiceButton('tips', 'Use these tips', secondaryButton)}
+            {hasTips && choiceButton('both', 'Use both', primaryButton)}
+          </>
+        )}
         <button type="button" onClick={onDismiss} className={ghostButton}>
           Dismiss
         </button>
@@ -115,7 +137,7 @@ function ReadySuggestion({ suggestion, onAccept, onDismiss }: ReadySuggestionPro
 }
 
 // Inline panel rendered below a TaskItem, indented to line up with the task name.
-function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPanelProps) {
+function SuggestionPanel({ state, onAccept, onDismiss, onRetry, taskName }: SuggestionPanelProps) {
   switch (state.status) {
     case 'loading':
       return (
@@ -135,7 +157,12 @@ function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPane
 
     case 'ready':
       return (
-        <ReadySuggestion suggestion={state.suggestion} onAccept={onAccept} onDismiss={onDismiss} />
+        <ReadySuggestion
+          suggestion={state.suggestion}
+          onAccept={onAccept}
+          onDismiss={onDismiss}
+          taskName={taskName}
+        />
       )
 
     case 'empty':

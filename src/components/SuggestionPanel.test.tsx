@@ -123,6 +123,58 @@ describe('SuggestionPanel', () => {
     ])
   })
 
+  describe('when the suggested name matches the task name', () => {
+    function renderSameName(tips: string[], category = 'Health') {
+      const props = { onAccept: vi.fn(), onDismiss: vi.fn(), onRetry: vi.fn() }
+      render(
+        <SuggestionPanel
+          {...props}
+          // Differs only in case and spacing.
+          taskName="do a 30-minute   strength workout "
+          state={{ status: 'ready', suggestion: { ...suggestion, tips, category } }}
+        />,
+      )
+      return props
+    }
+
+    const buttons = () => screen.getAllByRole('button').map((b) => b.textContent)
+
+    it('hides "Use this name" and "Use both", leaving the tips', async () => {
+      const { onAccept } = renderSameName(suggestion.tips)
+      expect(screen.getByText('The name already looks clear.')).toBeInTheDocument()
+      expect(screen.queryByText(suggestion.improvedName)).not.toBeInTheDocument()
+      expect(buttons()).toEqual(['Use these tips', 'Dismiss'])
+      await userEvent.click(screen.getByRole('button', { name: 'Use these tips' }))
+      expect(onAccept).toHaveBeenCalledWith('tips')
+    })
+
+    it('offers the category alone when there are no tips', async () => {
+      const { onAccept } = renderSameName([])
+      expect(buttons()).toEqual(['Use this category', 'Dismiss'])
+      await userEvent.click(screen.getByRole('button', { name: 'Use this category' }))
+      expect(onAccept).toHaveBeenCalledWith('category')
+    })
+
+    it('offers only Dismiss with no tips and no category', () => {
+      renderSameName([], '')
+      expect(buttons()).toEqual(['Dismiss'])
+    })
+  })
+
+  it('keeps the name options when the task name differs', () => {
+    render(
+      <SuggestionPanel
+        state={{ status: 'ready', suggestion }}
+        taskName="gym"
+        onAccept={vi.fn()}
+        onDismiss={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Use this name' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use both' })).toBeInTheDocument()
+  })
+
   it('shows a "no suggestion" state for a null response', () => {
     renderPanel({ status: 'empty' })
     expect(screen.getByRole('status')).toHaveTextContent(/no suggestion/i)
