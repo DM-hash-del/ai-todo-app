@@ -29,14 +29,17 @@ export function isSuggestion(value: unknown): value is Suggestion {
 }
 
 // Returns the task, or null if the required fields are malformed. A malformed
-// category or tips list is dropped on its own, keeping the task.
+// category, tips list or creation time is dropped on its own, keeping the task.
 function readTask(value: unknown): Task | null {
   if (typeof value !== 'object' || value === null) return null
-  const { id, name, done, category, tips } = value as Record<string, unknown>
+  const { id, name, done, category, tips, createdAt } = value as Record<string, unknown>
   if (typeof id !== 'string' || typeof name !== 'string' || typeof done !== 'boolean') return null
   const task: Task = { id, name, done }
   if (typeof category === 'string' && category) task.category = category
   if (isStringArray(tips)) task.tips = tips
+  if (typeof createdAt === 'string' && !Number.isNaN(Date.parse(createdAt))) {
+    task.createdAt = createdAt
+  }
   return task
 }
 

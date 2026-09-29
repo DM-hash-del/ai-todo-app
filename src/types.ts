@@ -2,6 +2,8 @@ export type Task = {
   id: string
   name: string
   done: boolean
+  // When the task was added, as an ISO timestamp. Optional: tasks saved before it existed lack it.
+  createdAt?: string
   // Kept from an accepted AI suggestion. Read-only: the user can't edit or add these.
   category?: string
   tips?: string[]

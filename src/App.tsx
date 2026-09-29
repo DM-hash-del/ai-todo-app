@@ -20,7 +20,10 @@ function App() {
   const pendingDelete = tasks.find((task) => task.id === pendingDeleteId)
 
   function addTask(name: string) {
-    setTasks((current) => [...current, { id: crypto.randomUUID(), name, done: false }])
+    setTasks((current) => [
+      ...current,
+      { id: crypto.randomUUID(), name, done: false, createdAt: new Date().toISOString() },
+    ])
   }
 
   function toggleTask(id: string) {

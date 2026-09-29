@@ -17,6 +17,19 @@ function renderItem(overrides: Partial<ComponentProps<typeof TaskItem>> = {}) {
 }
 
 describe('TaskItem', () => {
+  it('shows when the task was created, in local time', () => {
+    const createdAt = new Date(2026, 10, 9, 15, 45).toISOString()
+    renderItem({ task: { ...task, createdAt } })
+    const time = screen.getByText('Created: 09.11.26 at 15:45')
+    expect(time).toHaveAttribute('datetime', createdAt)
+    expect(time.parentElement).toHaveClass('text-fg-subtle', 'font-light')
+  })
+
+  it('shows no creation time for tasks saved before it was recorded', () => {
+    renderItem()
+    expect(screen.queryByText(/^Created:/)).not.toBeInTheDocument()
+  })
+
   it('renders the task name as the checkbox label', () => {
     renderItem()
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).not.toBeChecked()

@@ -178,6 +178,20 @@ describe('App persistence', () => {
     expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toBeChecked()
   })
 
+  it('records and shows when a task was created', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 9, 15, 45))
+    try {
+      const user = userEvent.setup()
+      render(<App />)
+      await user.type(screen.getByLabelText('New task'), 'Buy milk{Enter}')
+      expect(screen.getByText('Created: 09.11.26 at 15:45')).toBeInTheDocument()
+      expect(stored()[0].createdAt).toBe(new Date(2026, 10, 9, 15, 45).toISOString())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renames the task and stops saving the suggestion once it is accepted', async () => {
     const user = userEvent.setup()
     seed([{ id: '1', name: 'milk', done: false, suggestion }])

@@ -3,6 +3,15 @@ import type { SuggestionChoice, SuggestionState, Task } from '../types'
 import { ChevronDownIcon, CloseIcon, SparkleIcon } from './icons'
 import SuggestionPanel from './SuggestionPanel'
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
+// "Created: 09.11.26 at 15:45" (DD.MM.YY at HH:MM, in the user's local time).
+function formatCreated(iso: string) {
+  const date = new Date(iso)
+  const day = `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${pad(date.getFullYear() % 100)}`
+  return `Created: ${day} at ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 type TaskItemProps = {
   task: Task
   onToggle: (id: string) => void
@@ -43,77 +52,84 @@ function TaskItem({
 
   return (
     <li className="flex flex-col gap-2 px-3 py-2 transition-colors hover:bg-surface-muted/50 focus-within:bg-surface-muted/50 sm:px-4">
-      <div className="flex items-center gap-1">
-        {/* The label wraps the checkbox so the whole name is one large click target. */}
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md py-1.5 pr-1 pl-1">
-          <input
-            ref={checkboxRef}
-            id={`task-${task.id}`}
-            type="checkbox"
-            // Named by the task name alone; the category chip is a description.
-            aria-labelledby={nameId}
-            aria-describedby={task.category ? categoryId : undefined}
-            checked={task.done}
-            onChange={() => onToggle(task.id)}
-            className="size-4 shrink-0 cursor-pointer accent-accent"
-          />
-          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-            <span
-              id={nameId}
-              className={`min-w-0 break-words text-sm ${
-                task.done ? 'text-fg-subtle line-through' : 'text-fg'
-              }`}
-            >
-              {task.name}
-            </span>
-            {task.category && (
-              <span
-                id={categoryId}
-                className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-xs text-fg-muted"
-              >
-                {task.category}
-              </span>
-            )}
-          </span>
-        </label>
-        {tips.length > 0 && (
-          <button
-            type="button"
-            aria-expanded={tipsOpen}
-            aria-controls={tipsId}
-            onClick={() => setTipsOpen((open) => !open)}
-            aria-label={`Tips for "${task.name}"`}
-            className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
-          >
-            <span className="hidden sm:inline">Tips</span>
-            <ChevronDownIcon
-              className={`size-4 transition-transform sm:size-3.5 ${tipsOpen ? 'rotate-180' : ''}`}
+      <div className="flex flex-col">
+        {task.createdAt && (
+          <p className="pr-1 text-right text-xs font-light text-fg-subtle">
+            <time dateTime={task.createdAt}>{formatCreated(task.createdAt)}</time>
+          </p>
+        )}
+        <div className="flex items-center gap-1">
+          {/* The label wraps the checkbox so the whole name is one large click target. */}
+          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md py-1.5 pr-1 pl-1">
+            <input
+              ref={checkboxRef}
+              id={`task-${task.id}`}
+              type="checkbox"
+              // Named by the task name alone; the category chip is a description.
+              aria-labelledby={nameId}
+              aria-describedby={task.category ? categoryId : undefined}
+              checked={task.done}
+              onChange={() => onToggle(task.id)}
+              className="size-4 shrink-0 cursor-pointer accent-accent"
             />
-          </button>
-        )}
-        {showImprove && (
+            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+              <span
+                id={nameId}
+                className={`min-w-0 break-words text-sm ${
+                  task.done ? 'text-fg-subtle line-through' : 'text-fg'
+                }`}
+              >
+                {task.name}
+              </span>
+              {task.category && (
+                <span
+                  id={categoryId}
+                  className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-xs text-fg-muted"
+                >
+                  {task.category}
+                </span>
+              )}
+            </span>
+          </label>
+          {tips.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={tipsOpen}
+              aria-controls={tipsId}
+              onClick={() => setTipsOpen((open) => !open)}
+              aria-label={`Tips for "${task.name}"`}
+              className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
+            >
+              <span className="hidden sm:inline">Tips</span>
+              <ChevronDownIcon
+                className={`size-4 transition-transform sm:size-3.5 ${tipsOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+          )}
+          {showImprove && (
+            <button
+              ref={improveRef}
+              type="button"
+              // aria-disabled rather than disabled: a disabled button drops keyboard focus.
+              aria-disabled={isLoading}
+              onClick={() => !isLoading && onSuggest(task.id)}
+              aria-label={isLoading ? `Improving "${task.name}"…` : `Improve "${task.name}" with AI`}
+              className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-accent-text transition-colors hover:bg-accent-subtle aria-disabled:cursor-wait aria-disabled:text-fg-subtle aria-disabled:hover:bg-transparent"
+            >
+              <SparkleIcon className="size-4 sm:size-3.5" />
+              <span className="hidden sm:inline">{isLoading ? 'Improving…' : 'Improve'}</span>
+            </button>
+          )}
           <button
-            ref={improveRef}
+            id={`task-${task.id}-delete`}
             type="button"
-            // aria-disabled rather than disabled: a disabled button drops keyboard focus.
-            aria-disabled={isLoading}
-            onClick={() => !isLoading && onSuggest(task.id)}
-            aria-label={isLoading ? `Improving "${task.name}"…` : `Improve "${task.name}" with AI`}
-            className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-accent-text transition-colors hover:bg-accent-subtle aria-disabled:cursor-wait aria-disabled:text-fg-subtle aria-disabled:hover:bg-transparent"
+            onClick={() => onDelete(task.id)}
+            aria-label={`Delete "${task.name}"`}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-colors hover:bg-danger-subtle hover:text-danger"
           >
-            <SparkleIcon className="size-4 sm:size-3.5" />
-            <span className="hidden sm:inline">{isLoading ? 'Improving…' : 'Improve'}</span>
+            <CloseIcon />
           </button>
-        )}
-        <button
-          id={`task-${task.id}-delete`}
-          type="button"
-          onClick={() => onDelete(task.id)}
-          aria-label={`Delete "${task.name}"`}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-colors hover:bg-danger-subtle hover:text-danger"
-        >
-          <CloseIcon />
-        </button>
+        </div>
       </div>
       {tips.length > 0 && tipsOpen && (
         <ul

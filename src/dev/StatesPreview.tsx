@@ -24,6 +24,16 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
     task: { id: 'default', name: 'email landlord', done: false },
   },
   {
+    title: 'Created time',
+    note: 'New tasks record when they were added, shown dimmed above the actions in the user’s local time. Tasks saved before this existed show nothing.',
+    task: {
+      id: 'created',
+      name: 'Book dentist appointment',
+      done: false,
+      createdAt: new Date(2026, 10, 9, 15, 45).toISOString(),
+    },
+  },
+  {
     title: 'Completed',
     note: 'Checked tasks are struck through, and the Improve action is hidden.',
     task: { id: 'done', name: 'Buy milk', done: true },
