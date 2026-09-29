@@ -2,10 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import AddTaskForm from './components/AddTaskForm'
 import Header from './components/Header'
 import TaskList from './components/TaskList'
+import { loadState, saveState } from './storage'
+import type { Suggestions } from './storage'
 import type { Task } from './types'
 
 function App() {
-  const [tasks, setTasks] = useState<Task[]>([])
+  // Read storage once, on first render, for both pieces of state.
+  const [initial] = useState(loadState)
+  const [tasks, setTasks] = useState<Task[]>(initial.tasks)
+  const [suggestions, setSuggestions] = useState<Suggestions>(initial.suggestions)
   const remaining = tasks.filter((task) => !task.done).length
   const focusAfterRender = useRef<string | null>(null)
 
@@ -19,13 +24,34 @@ function App() {
     )
   }
 
+  function clearSuggestion(id: string) {
+    setSuggestions((current) => {
+      const next = { ...current }
+      delete next[id]
+      return next
+    })
+  }
+
   function deleteTask(id: string) {
     const index = tasks.findIndex((task) => task.id === id)
     const neighbour = tasks[index + 1] ?? tasks[index - 1]
     // The delete button is about to unmount; send keyboard focus somewhere useful.
     focusAfterRender.current = neighbour ? `task-${neighbour.id}` : 'new-task'
     setTasks((current) => current.filter((task) => task.id !== id))
+    clearSuggestion(id)
   }
+
+  // Accepting renames the task and drops the suggestion, so it isn't saved again.
+  function acceptSuggestion(id: string, improvedName: string) {
+    setTasks((current) =>
+      current.map((task) => (task.id === id ? { ...task, name: improvedName } : task)),
+    )
+    clearSuggestion(id)
+  }
+
+  useEffect(() => {
+    saveState(tasks, suggestions)
+  }, [tasks, suggestions])
 
   useEffect(() => {
     if (!focusAfterRender.current) return
@@ -49,7 +75,14 @@ function App() {
               </p>
             )}
           </div>
-          <TaskList tasks={tasks} onToggle={toggleTask} onDelete={deleteTask} />
+          <TaskList
+            tasks={tasks}
+            onToggle={toggleTask}
+            onDelete={deleteTask}
+            suggestions={suggestions}
+            onAcceptSuggestion={acceptSuggestion}
+            onDismissSuggestion={clearSuggestion}
+          />
         </section>
       </main>
     </div>
