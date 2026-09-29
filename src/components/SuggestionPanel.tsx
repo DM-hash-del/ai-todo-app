@@ -1,9 +1,10 @@
-import type { SuggestionState } from '../types'
+import { useState } from 'react'
+import type { Suggestion, SuggestionChoice, SuggestionState } from '../types'
 import { AlertIcon, RetryIcon, SparkleIcon } from './icons'
 
 type SuggestionPanelProps = {
   state: SuggestionState
-  onAccept: (improvedName: string) => void
+  onAccept: (choice: SuggestionChoice) => void
   onDismiss: () => void
   onRetry: () => void
 }
@@ -13,6 +14,98 @@ type SuggestionPanelProps = {
 const button =
   'flex min-h-8 items-center gap-1 rounded-md px-2.5 text-xs font-medium transition-colors'
 const ghostButton = `${button} text-fg-muted hover:bg-surface-raised hover:text-fg`
+const primaryButton = `${button} bg-accent text-accent-fg hover:bg-accent-hover`
+const secondaryButton = `${button} border border-border-strong bg-surface-raised text-fg hover:bg-surface-muted`
+
+// Hovering or focusing a "Use…" button outlines the part it would keep. The
+// padding is always there (offset by negative margin) so the outline doesn't shift layout.
+const previewTarget = '-mx-1.5 rounded-sm px-1.5 py-0.5 transition-shadow'
+const previewOn = 'bg-surface-raised ring-2 ring-accent'
+
+type ReadySuggestionProps = {
+  suggestion: Suggestion
+  onAccept: (choice: SuggestionChoice) => void
+  onDismiss: () => void
+}
+
+function ReadySuggestion({ suggestion, onAccept, onDismiss }: ReadySuggestionProps) {
+  const { improvedName, tips, category } = suggestion
+  const hasTips = tips.length > 0
+  // Hover and focus are tracked apart, so moving the mouse away doesn't clear a keyboard preview.
+  const [hovered, setHovered] = useState<SuggestionChoice | null>(null)
+  const [focused, setFocused] = useState<SuggestionChoice | null>(null)
+  const preview = hovered ?? focused
+
+  function choiceButton(choice: SuggestionChoice, label: string, className: string) {
+    return (
+      <button
+        type="button"
+        onClick={() => onAccept(choice)}
+        onMouseEnter={() => setHovered(choice)}
+        onMouseLeave={() => setHovered(null)}
+        onFocus={() => setFocused(choice)}
+        onBlur={() => setFocused(null)}
+        className={className}
+      >
+        {label}
+      </button>
+    )
+  }
+
+  return (
+    <section
+      aria-label="AI suggestion"
+      className="flex flex-col gap-2 rounded-md border border-border bg-accent-subtle p-3"
+    >
+      <div className="flex items-center gap-2">
+        <SparkleIcon className="size-3.5 text-accent-text" />
+        <span className="text-xs font-medium text-accent-text">Suggestion</span>
+        {category && (
+          // The category is kept with every choice, so it's outlined for all of them.
+          <span
+            className={`rounded-sm bg-surface-raised px-1.5 py-0.5 text-xs text-fg-muted transition-shadow ${
+              preview ? 'ring-1 ring-accent' : ''
+            }`}
+          >
+            {category}
+          </span>
+        )}
+      </div>
+      {/* Name and tips share a wrapper so "Use both" outlines them as one block. */}
+      <div
+        className={`flex flex-col gap-2 ${previewTarget} ${preview === 'both' ? previewOn : ''}`}
+      >
+        <p
+          className={`text-sm font-medium text-fg ${previewTarget} ${
+            preview === 'name' ? previewOn : ''
+          }`}
+        >
+          {improvedName}
+        </p>
+        {hasTips && (
+          <div
+            className={`${previewTarget} ${preview === 'tips' ? previewOn : ''}`}
+          >
+            <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-fg-muted marker:text-fg-subtle">
+              {tips.map((tip, index) => (
+                <li key={index}>{tip}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {/* The fullest option is the primary action. Without tips, that's the name. */}
+        {choiceButton('name', 'Use this name', hasTips ? secondaryButton : primaryButton)}
+        {hasTips && choiceButton('tips', 'Use these tips', secondaryButton)}
+        {hasTips && choiceButton('both', 'Use both', primaryButton)}
+        <button type="button" onClick={onDismiss} className={ghostButton}>
+          Dismiss
+        </button>
+      </div>
+    </section>
+  )
+}
 
 // Inline panel rendered below a TaskItem, indented to line up with the task name.
 function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPanelProps) {
@@ -33,45 +126,9 @@ function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPane
         </div>
       )
 
-    case 'ready': {
-      const { improvedName, tips, category } = state.suggestion
-      return (
-        <section
-          aria-label="AI suggestion"
-          className="flex flex-col gap-2 rounded-md border border-border bg-accent-subtle p-3"
-        >
-          <div className="flex items-center gap-2">
-            <SparkleIcon className="size-3.5 text-accent-text" />
-            <span className="text-xs font-medium text-accent-text">Suggestion</span>
-            {category && (
-              <span className="rounded-sm bg-surface-raised px-1.5 py-0.5 text-xs text-fg-muted">
-                {category}
-              </span>
-            )}
-          </div>
-          <p className="text-sm font-medium text-fg">{improvedName}</p>
-          {tips.length > 0 && (
-            <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-fg-muted marker:text-fg-subtle">
-              {tips.map((tip, index) => (
-                <li key={index}>{tip}</li>
-              ))}
-            </ul>
-          )}
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => onAccept(improvedName)}
-              className={`${button} bg-accent text-accent-fg hover:bg-accent-hover`}
-            >
-              Use this name
-            </button>
-            <button type="button" onClick={onDismiss} className={ghostButton}>
-              Dismiss
-            </button>
-          </div>
-        </section>
-      )
-    }
+    case 'ready':
+      return <ReadySuggestion suggestion={state.suggestion} onAccept={onAccept} onDismiss={onDismiss} />
+
 
     case 'empty':
       return (

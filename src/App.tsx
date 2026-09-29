@@ -5,7 +5,7 @@ import Header from './components/Header'
 import TaskList from './components/TaskList'
 import { loadState, saveState } from './storage'
 import type { Suggestions } from './storage'
-import type { Task } from './types'
+import type { SuggestionChoice, Task } from './types'
 
 function App() {
   // Read storage once, on first render, for both pieces of state.
@@ -62,10 +62,23 @@ function App() {
     }
   }
 
-  // Accepting renames the task and drops the suggestion, so it isn't saved again.
-  function acceptSuggestion(id: string, improvedName: string) {
+  // Accepting keeps the chosen parts, plus the category, then drops the suggestion
+  // so it isn't saved again. Keeping only the name leaves any earlier tips in place.
+  function acceptSuggestion(id: string, choice: SuggestionChoice) {
+    const state = suggestions[id]
+    if (state?.status !== 'ready') return
+    const { improvedName, tips, category } = state.suggestion
     setTasks((current) =>
-      current.map((task) => (task.id === id ? { ...task, name: improvedName } : task)),
+      current.map((task) =>
+        task.id === id
+          ? {
+              ...task,
+              name: choice === 'tips' ? task.name : improvedName,
+              tips: choice === 'name' ? task.tips : tips,
+              category: category.trim() || task.category,
+            }
+          : task,
+      ),
     )
     clearSuggestion(id)
   }

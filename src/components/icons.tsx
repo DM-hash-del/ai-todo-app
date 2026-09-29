@@ -61,6 +61,14 @@ export function RetryIcon(props: IconProps) {
   )
 }
 
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 6l4 4 4-4" />
+    </Icon>
+  )
+}
+
 export function ListIcon(props: IconProps) {
   return (
     <Icon {...props}>

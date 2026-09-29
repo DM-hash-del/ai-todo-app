@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import TaskItem from './TaskItem'
@@ -92,14 +92,77 @@ describe('TaskItem', () => {
       },
     })
     await userEvent.click(screen.getByRole('button', { name: 'Use this name' }))
-    expect(onAcceptSuggestion).toHaveBeenCalledWith('1', 'Buy oat milk')
+    expect(onAcceptSuggestion).toHaveBeenCalledWith('1', 'name')
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(onDismissSuggestion).toHaveBeenCalledWith('1')
+  })
+
+  it('passes the chosen part through to onAcceptSuggestion', async () => {
+    const onAcceptSuggestion = vi.fn()
+    renderItem({
+      onAcceptSuggestion,
+      suggestion: {
+        status: 'ready',
+        suggestion: { improvedName: 'Buy oat milk', tips: ['Check the date'], category: 'Errands' },
+      },
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Use both' }))
+    expect(onAcceptSuggestion).toHaveBeenCalledWith('1', 'both')
   })
 
   it('retries from the error state', async () => {
     const { onSuggest } = renderItem({ onSuggest: vi.fn(), suggestion: { status: 'error' } })
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onSuggest).toHaveBeenCalledWith('1')
+  })
+
+  describe('kept category and tips', () => {
+    const kept = { ...task, category: 'Errands', tips: ['Check the date', 'Bring a bag'] }
+
+    it('shows the category next to the name without changing the checkbox name', () => {
+      renderItem({ task: kept })
+      const checkbox = screen.getByRole('checkbox', { name: 'Buy milk' })
+      expect(checkbox).toHaveAccessibleDescription('Errands')
+      expect(screen.getByText('Errands')).toBeInTheDocument()
+    })
+
+    it('collapses tips by default and toggles them', async () => {
+      renderItem({ task: kept })
+      const toggle = screen.getByRole('button', { name: 'Tips for "Buy milk"' })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByText('Check the date')).not.toBeInTheDocument()
+
+      await userEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      const list = screen.getByRole('list', { name: 'Tips for "Buy milk"' })
+      expect(toggle).toHaveAttribute('aria-controls', list.id)
+      expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(
+        kept.tips,
+      )
+
+      await userEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByText('Check the date')).not.toBeInTheDocument()
+    })
+
+    it('puts the tips toggle just before Improve', () => {
+      renderItem({ task: kept, onSuggest: vi.fn() })
+      expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+        'Tips for "Buy milk"',
+        'Improve "Buy milk" with AI',
+        'Delete "Buy milk"',
+      ])
+    })
+
+    it('keeps the tips toggle on completed tasks', () => {
+      renderItem({ task: { ...kept, done: true }, onSuggest: vi.fn() })
+      expect(screen.getByRole('button', { name: 'Tips for "Buy milk"' })).toBeInTheDocument()
+    })
+
+    it('has no category chip or tips toggle when nothing was kept', () => {
+      renderItem({ task: { ...task, tips: [] } })
+      expect(screen.queryByRole('button', { name: /tips for/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Buy milk' })).not.toHaveAccessibleDescription()
+    })
   })
 })

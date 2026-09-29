@@ -27,6 +27,22 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
     task: { id: 'done', name: 'Buy milk', done: true },
   },
   {
+    title: 'Kept category and tips',
+    note: 'After "Use both" or "Use these tips". The category sits next to the name; the Tips button expands the read-only list (collapsed by default).',
+    task: {
+      id: 'kept',
+      name: 'Do a 30-minute strength workout at the gym',
+      done: false,
+      category: 'Health',
+      tips: ['Pack your bag the night before', 'Pick a fixed time slot', 'Log your sets'],
+    },
+  },
+  {
+    title: 'Kept category only',
+    note: 'After "Use this name": the category comes with the name, so there is no Tips button.',
+    task: { id: 'kept-name', name: 'Call Mum this evening', done: false, category: 'Personal' },
+  },
+  {
     title: 'Loading',
     note: 'The request is in flight. Improve ignores clicks (aria-disabled) to prevent duplicate submits but stays focusable.',
     task: { id: 'loading', name: 'plan trip', done: false },
@@ -34,7 +50,7 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
   },
   {
     title: 'Suggestion',
-    note: 'A 200 response, shown inline below the item.',
+    note: 'A 200 response, shown inline below the item. Hover or focus a "Use…" button to outline what it keeps.',
     task: { id: 'ready', name: 'gym', done: false },
     suggestion: {
       status: 'ready',
@@ -47,7 +63,7 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
   },
   {
     title: 'Suggestion without tips',
-    note: 'The tips array can be empty.',
+    note: 'The tips array can be empty, so only "Use this name" is offered.',
     task: { id: 'no-tips', name: 'call mum', done: false },
     suggestion: {
       status: 'ready',

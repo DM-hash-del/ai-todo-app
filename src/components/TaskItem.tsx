@@ -1,6 +1,6 @@
-import { useRef } from 'react'
-import type { SuggestionState, Task } from '../types'
-import { CloseIcon, SparkleIcon } from './icons'
+import { useRef, useState } from 'react'
+import type { SuggestionChoice, SuggestionState, Task } from '../types'
+import { ChevronDownIcon, CloseIcon, SparkleIcon } from './icons'
 import SuggestionPanel from './SuggestionPanel'
 
 type TaskItemProps = {
@@ -10,7 +10,7 @@ type TaskItemProps = {
   // AI suggestion props are optional: without `onSuggest`, the Improve button is hidden.
   suggestion?: SuggestionState
   onSuggest?: (id: string) => void
-  onAcceptSuggestion?: (id: string, improvedName: string) => void
+  onAcceptSuggestion?: (id: string, choice: SuggestionChoice) => void
   onDismissSuggestion?: (id: string) => void
 }
 
@@ -27,6 +27,12 @@ function TaskItem({
   const improveRef = useRef<HTMLButtonElement>(null)
   const isLoading = suggestion?.status === 'loading'
   const showImprove = onSuggest && !task.done
+  const tips = task.tips ?? []
+  // Kept tips start collapsed. This is view state only, so it isn't saved.
+  const [tipsOpen, setTipsOpen] = useState(false)
+  const nameId = `task-${task.id}-name`
+  const categoryId = `task-${task.id}-category`
+  const tipsId = `task-${task.id}-tips`
 
   // Panel buttons unmount when the suggestion state changes, so move focus
   // back onto the row first. Otherwise keyboard focus falls back to <body>.
@@ -44,18 +50,47 @@ function TaskItem({
             ref={checkboxRef}
             id={`task-${task.id}`}
             type="checkbox"
+            // Named by the task name alone; the category chip is a description.
+            aria-labelledby={nameId}
+            aria-describedby={task.category ? categoryId : undefined}
             checked={task.done}
             onChange={() => onToggle(task.id)}
             className="size-4 shrink-0 cursor-pointer accent-accent"
           />
-          <span
-            className={`min-w-0 flex-1 break-words text-sm ${
-              task.done ? 'text-fg-subtle line-through' : 'text-fg'
-            }`}
-          >
-            {task.name}
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            <span
+              id={nameId}
+              className={`min-w-0 break-words text-sm ${
+                task.done ? 'text-fg-subtle line-through' : 'text-fg'
+              }`}
+            >
+              {task.name}
+            </span>
+            {task.category && (
+              <span
+                id={categoryId}
+                className="rounded-sm bg-surface-muted px-1.5 py-0.5 text-xs text-fg-muted"
+              >
+                {task.category}
+              </span>
+            )}
           </span>
         </label>
+        {tips.length > 0 && (
+          <button
+            type="button"
+            aria-expanded={tipsOpen}
+            aria-controls={tipsId}
+            onClick={() => setTipsOpen((open) => !open)}
+            aria-label={`Tips for "${task.name}"`}
+            className="flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg"
+          >
+            <span className="hidden sm:inline">Tips</span>
+            <ChevronDownIcon
+              className={`size-4 transition-transform sm:size-3.5 ${tipsOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+        )}
         {showImprove && (
           <button
             ref={improveRef}
@@ -79,13 +114,26 @@ function TaskItem({
           <CloseIcon />
         </button>
       </div>
+      {tips.length > 0 && tipsOpen && (
+        <ul
+          id={tipsId}
+          aria-label={`Tips for "${task.name}"`}
+          className="flex list-disc flex-col gap-1 pb-1 pl-12 text-xs text-fg-muted marker:text-fg-subtle"
+        >
+          {tips.map((tip, index) => (
+            <li key={index} className="break-words">
+              {tip}
+            </li>
+          ))}
+        </ul>
+      )}
       {suggestion && (
         <div className="pb-1 pl-8">
           <SuggestionPanel
             state={suggestion}
-            onAccept={(name) => {
+            onAccept={(choice) => {
               refocusRow()
-              onAcceptSuggestion?.(task.id, name)
+              onAcceptSuggestion?.(task.id, choice)
             }}
             onDismiss={() => {
               refocusRow()

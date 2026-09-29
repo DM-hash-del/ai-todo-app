@@ -59,6 +59,29 @@ describe('loadState', () => {
     })
   })
 
+  it('round-trips a kept category and tips', () => {
+    const task = { id: 'a', name: 'Milk', done: false, category: 'Shopping', tips: ['Go early'] }
+    saveState([task], {})
+    expect(stored()).toEqual([task])
+    expect(loadState()).toEqual({ tasks: [task], suggestions: {} })
+  })
+
+  it('drops a malformed category or tips list but keeps the task', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { id: 'a', name: 'Bad tips', done: false, category: 'Shopping', tips: [1, 2] },
+        { id: 'b', name: 'Bad category', done: false, category: 7, tips: ['Ok'] },
+        { id: 'c', name: 'Empty category', done: false, category: '' },
+      ]),
+    )
+    expect(loadState().tasks).toEqual([
+      { id: 'a', name: 'Bad tips', done: false, category: 'Shopping' },
+      { id: 'b', name: 'Bad category', done: false, tips: ['Ok'] },
+      { id: 'c', name: 'Empty category', done: false },
+    ])
+  })
+
   it('returns an empty list when nothing is stored', () => {
     expect(loadState()).toEqual(empty)
   })

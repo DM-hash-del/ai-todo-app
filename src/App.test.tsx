@@ -121,12 +121,32 @@ describe('App persistence', () => {
     await user.click(screen.getByRole('button', { name: 'Use this name' }))
     expect(screen.getByRole('checkbox', { name: suggestion.improvedName })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
-    expect(stored()).toEqual([{ id: '1', name: suggestion.improvedName, done: false }])
+    expect(stored()).toEqual([
+      { id: '1', name: suggestion.improvedName, done: false, category: 'Shopping' },
+    ])
 
     unmount()
     render(<App />)
     expect(screen.getByRole('checkbox', { name: suggestion.improvedName })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the tips and category across a reload, collapsed by default', async () => {
+    const user = userEvent.setup()
+    seed([{ id: '1', name: 'milk', done: false, suggestion }])
+    const { unmount } = render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Use both' }))
+    unmount()
+    render(<App />)
+
+    const checkbox = screen.getByRole('checkbox', { name: suggestion.improvedName })
+    expect(checkbox).toHaveAccessibleDescription('Shopping')
+    const toggle = screen.getByRole('button', { name: `Tips for "${suggestion.improvedName}"` })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await user.click(toggle)
+    expect(screen.getByText('Check the fridge first')).toBeInTheDocument()
+    expect(screen.getByText('Grab a bag')).toBeInTheDocument()
   })
 
   it('stops saving the suggestion once it is dismissed', async () => {
@@ -226,7 +246,77 @@ describe('App AI suggestions', () => {
     await user.click(within(await panel()).getByRole('button', { name: 'Use this name' }))
     expect(screen.getByRole('checkbox', { name: suggestion.improvedName })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
-    expect(stored()).toEqual([{ id: '1', name: suggestion.improvedName, done: false }])
+    // The category comes with the name; the tips don't.
+    expect(screen.queryByRole('button', { name: /tips for/i })).not.toBeInTheDocument()
+    expect(stored()).toEqual([
+      { id: '1', name: suggestion.improvedName, done: false, category: 'Shopping' },
+    ])
+  })
+
+  it('keeps the tips and category but not the name with "Use these tips"', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(suggestion)))
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    await user.click(within(await panel()).getByRole('button', { name: 'Use these tips' }))
+    expect(screen.getByRole('checkbox', { name: 'milk' })).toHaveAccessibleDescription('Shopping')
+    expect(screen.queryByRole('region', { name: 'AI suggestion' })).not.toBeInTheDocument()
+    // Focus lands on Improve rather than being stranded.
+    expect(improve()).toHaveFocus()
+    expect(stored()).toEqual([
+      { id: '1', name: 'milk', done: false, category: 'Shopping', tips: suggestion.tips },
+    ])
+  })
+
+  it('keeps the name, tips and category with "Use both"', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(suggestion)))
+    seedMilk()
+    render(<App />)
+
+    await user.click(improve())
+    await user.click(within(await panel()).getByRole('button', { name: 'Use both' }))
+    expect(stored()).toEqual([
+      {
+        id: '1',
+        name: suggestion.improvedName,
+        done: false,
+        category: 'Shopping',
+        tips: suggestion.tips,
+      },
+    ])
+  })
+
+  it('replaces kept tips and category when a later suggestion is used', async () => {
+    const user = userEvent.setup()
+    const next: Suggestion = {
+      improvedName: 'Buy oat milk',
+      tips: ['Try the barista one'],
+      category: 'Groceries',
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(next)))
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { id: '1', name: 'milk', done: false, category: 'Shopping', tips: ['Old tip'] },
+      ]),
+    )
+    render(<App />)
+
+    // Name only: the new category replaces the old one, but the old tips stay.
+    await user.click(improve())
+    await user.click(within(await panel()).getByRole('button', { name: 'Use this name' }))
+    expect(stored()).toEqual([
+      { id: '1', name: 'Buy oat milk', done: false, category: 'Groceries', tips: ['Old tip'] },
+    ])
+
+    await user.click(screen.getByRole('button', { name: 'Improve "Buy oat milk" with AI' }))
+    await user.click(within(await panel()).getByRole('button', { name: 'Use these tips' }))
+    expect(stored()).toEqual([
+      { id: '1', name: 'Buy oat milk', done: false, category: 'Groceries', tips: next.tips },
+    ])
   })
 
   it('shows the empty state when the body is null', async () => {

@@ -1,4 +1,4 @@
-import type { SuggestionState, Task } from '../types'
+import type { SuggestionChoice, SuggestionState, Task } from '../types'
 import { ListIcon } from './icons'
 import TaskItem from './TaskItem'
 
@@ -8,7 +8,7 @@ type TaskListProps = {
   onDelete: (id: string) => void
   suggestions?: Record<string, SuggestionState | undefined>
   onSuggest?: (id: string) => void
-  onAcceptSuggestion?: (id: string, improvedName: string) => void
+  onAcceptSuggestion?: (id: string, choice: SuggestionChoice) => void
   onDismissSuggestion?: (id: string) => void
 }
 

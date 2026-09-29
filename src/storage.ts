@@ -13,21 +13,26 @@ export type PersistedState = {
   suggestions: Suggestions
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
 export function isSuggestion(value: unknown): value is Suggestion {
   if (typeof value !== 'object' || value === null) return false
   const { improvedName, tips, category } = value as Record<string, unknown>
-  return (
-    typeof improvedName === 'string' &&
-    typeof category === 'string' &&
-    Array.isArray(tips) &&
-    tips.every((tip) => typeof tip === 'string')
-  )
+  return typeof improvedName === 'string' && typeof category === 'string' && isStringArray(tips)
 }
 
-function isTask(value: unknown): value is Task {
-  if (typeof value !== 'object' || value === null) return false
-  const { id, name, done } = value as Record<string, unknown>
-  return typeof id === 'string' && typeof name === 'string' && typeof done === 'boolean'
+// Returns the task, or null if the required fields are malformed. A malformed
+// category or tips list is dropped on its own, keeping the task.
+function readTask(value: unknown): Task | null {
+  if (typeof value !== 'object' || value === null) return null
+  const { id, name, done, category, tips } = value as Record<string, unknown>
+  if (typeof id !== 'string' || typeof name !== 'string' || typeof done !== 'boolean') return null
+  const task: Task = { id, name, done }
+  if (typeof category === 'string' && category) task.category = category
+  if (isStringArray(tips)) task.tips = tips
+  return task
 }
 
 // Storage can be unavailable (private mode, blocked site data) or hold malformed
@@ -44,11 +49,12 @@ export function loadState(): PersistedState {
     const suggestions: Suggestions = {}
     for (const item of parsed) {
       // Skip individual bad entries rather than throwing away the whole list.
-      if (!isTask(item)) continue
-      tasks.push({ id: item.id, name: item.name, done: item.done })
+      const task = readTask(item)
+      if (!task) continue
+      tasks.push(task)
       const suggestion = (item as StoredTask).suggestion
       if (isSuggestion(suggestion)) {
-        suggestions[item.id] = { status: 'ready', suggestion }
+        suggestions[task.id] = { status: 'ready', suggestion }
       }
     }
     return { tasks, suggestions }
