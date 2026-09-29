@@ -28,7 +28,7 @@ const examples: { title: string; note: string; task: Task; suggestion?: Suggesti
   },
   {
     title: 'Loading',
-    note: 'The request is in flight. The Improve button is disabled to prevent duplicate submits.',
+    note: 'The request is in flight. Improve ignores clicks (aria-disabled) to prevent duplicate submits but stays focusable.',
     task: { id: 'loading', name: 'plan trip', done: false },
     suggestion: { status: 'loading' },
   },

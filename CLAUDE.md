@@ -48,14 +48,14 @@ All visual tokens live in `src/index.css` (Tailwind v4 `@theme`). The look is ca
 | `fg-muted` | secondary text, descriptions, tips |
 | `fg-subtle` | placeholders, meta text, completed (struck-through) to-dos |
 | `border` | dividers, card outlines |
-| `border-strong` | input outlines, hover borders |
+| `border-strong` | input/control outlines (≥3:1 against surfaces), hover borders |
 | `accent` / `accent-hover` | primary button background, checked checkbox |
 | `accent-fg` | text/icons on `bg-accent` |
 | `accent-subtle` | tinted background (e.g. the AI suggestion panel) |
 | `accent-text` | links and accent-coloured text on surfaces |
 | `danger` / `danger-subtle` | error text/border / error background |
 
-Every text token passes WCAG AA (≥4.5:1) on `surface`, `surface-raised` and `surface-muted` in both themes. Keep that true when you change the primitives.
+Every text token passes WCAG AA (≥4.5:1) on `surface`, `surface-raised` and `surface-muted` in both themes. `border-strong` meets WCAG 1.4.11 (≥3:1 for non-text UI) against `surface` and `surface-raised`: `--gray-450` in light, `--gray-500` in dark. Keep both true when you change the primitives. Plain `border` is only for decorative dividers. The base layer sets `border-color: var(--border)` on every element, so a bare `border` / `divide-y` is already the right colour.
 
 **Type scale:** `text-xs` 12 · `text-sm` 14 · `text-base` 16 (body default) · `text-lg` 18 · `text-xl` 20 · `text-2xl` 24 · `text-3xl` 30. Each size carries its own line-height. Larger sizes (`text-4xl`+) are removed. Weights: `font-normal` for body, `font-medium` for labels/buttons, `font-semibold` for headings. Fonts: `font-sans` (system stack, the default) and `font-mono`.
 
@@ -66,6 +66,13 @@ Every text token passes WCAG AA (≥4.5:1) on `surface`, `surface-raised` and `s
 **Shadows:** only `shadow-sm` (cards) and `shadow-md` (popovers/dialogs). Prefer a `border` over a shadow.
 
 **Focus:** a global `:focus-visible` outline (2px accent, 2px offset) is set in the base layer. Don't remove outlines. If a component needs a custom ring, use `focus-visible:outline-accent`.
+
+**Accessibility and responsive rules** (checked at 375px and 1280px, light and dark):
+- **Real controls only.** Use `<button>`, `<input>` and `<label>`; never put click handlers on a `div`. Wrap a checkbox and its text in one `<label>` so the whole row is the click target.
+- **Targets:** at least 24×24px, and 32px (`size-8` / `min-h-8`) for icon and panel buttons. Icon-only buttons need an `aria-label`.
+- **Don't strand focus.** When an action unmounts the focused control (delete, accept, dismiss, retry), move focus to something sensible first: the next or previous task's checkbox, the row's Improve button, or the `#new-task` input.
+- **Busy, not disabled.** For controls that are busy with a request, use `aria-disabled` and ignore clicks instead of `disabled`, which drops focus. `disabled` is fine for Add while the input is empty.
+- **Mobile layout:** no horizontal scroll at 375px, and long unbroken task names must wrap (`break-words` with `min-w-0`). Secondary button labels may collapse to icon-only below `sm` (keep the `aria-label`), and panel actions wrap under their message.
 
 **Dark mode:** follows the OS (`prefers-color-scheme`) by default. Setting `data-theme="dark"` or `data-theme="light"` on `<html>` forces a theme. The custom `dark:` variant respects both. To change a colour, re-point the semantic variable in both the light block and the `@variant dark` block in `index.css`. Never change it per component.
 

@@ -8,8 +8,11 @@ type SuggestionPanelProps = {
   onRetry: () => void
 }
 
-const ghostButton =
-  'rounded-md px-2.5 py-1 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg'
+// 32px min height keeps panel buttons comfortable touch targets. The hover fill
+// is surface-raised so it shows on every panel background (muted, accent, danger).
+const button =
+  'flex min-h-8 items-center gap-1 rounded-md px-2.5 text-xs font-medium transition-colors'
+const ghostButton = `${button} text-fg-muted hover:bg-surface-raised hover:text-fg`
 
 // Inline panel rendered below a TaskItem, indented to line up with the task name.
 function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPanelProps) {
@@ -58,7 +61,7 @@ function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPane
             <button
               type="button"
               onClick={() => onAccept(improvedName)}
-              className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+              className={`${button} bg-accent text-accent-fg hover:bg-accent-hover`}
             >
               Use this name
             </button>
@@ -74,10 +77,10 @@ function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPane
       return (
         <div
           role="status"
-          className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted px-3 py-2"
+          className="flex flex-col items-start gap-1 rounded-md border border-border bg-surface-muted py-2 pr-2 pl-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
         >
           <p className="text-xs text-fg-muted">No suggestion for this one. Try adding more detail.</p>
-          <button type="button" onClick={onDismiss} className={ghostButton}>
+          <button type="button" onClick={onDismiss} className={`${ghostButton} -ml-2.5 sm:ml-0`}>
             Dismiss
           </button>
         </div>
@@ -87,21 +90,26 @@ function SuggestionPanel({ state, onAccept, onDismiss, onRetry }: SuggestionPane
       return (
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger-subtle px-3 py-2"
+          className="flex flex-col gap-1 rounded-md border border-danger/30 bg-danger-subtle py-2 pr-2 pl-3 sm:flex-row sm:items-center sm:gap-2"
         >
-          <AlertIcon className="size-4 shrink-0 text-danger" />
-          <p className="flex-1 text-xs text-fg">Couldn’t get a suggestion. Please try again.</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-danger transition-colors hover:bg-surface-raised"
-          >
-            <RetryIcon className="size-3.5" />
-            Retry
-          </button>
-          <button type="button" onClick={onDismiss} className={ghostButton}>
-            Dismiss
-          </button>
+          <div className="flex flex-1 items-start gap-2">
+            <AlertIcon className="size-4 shrink-0 text-danger" />
+            <p className="text-xs text-fg">Couldn’t get a suggestion. Please try again.</p>
+          </div>
+          {/* On narrow screens the actions wrap under the message, aligned with its text. */}
+          <div className="flex gap-1 pl-3.5 sm:pl-0">
+            <button
+              type="button"
+              onClick={onRetry}
+              className={`${button} text-danger hover:bg-surface-raised`}
+            >
+              <RetryIcon className="size-3.5" />
+              Retry
+            </button>
+            <button type="button" onClick={onDismiss} className={ghostButton}>
+              Dismiss
+            </button>
+          </div>
         </div>
       )
   }

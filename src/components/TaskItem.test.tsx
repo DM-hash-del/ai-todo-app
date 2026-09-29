@@ -51,10 +51,33 @@ describe('TaskItem', () => {
     expect(onSuggest).toHaveBeenCalledWith('1')
   })
 
-  it('disables Improve and shows the skeleton while loading', () => {
-    renderItem({ onSuggest: vi.fn(), suggestion: { status: 'loading' } })
-    expect(screen.getByRole('button', { name: /improve/i })).toBeDisabled()
+  it('keeps Improve focusable but inert while loading, and shows the skeleton', async () => {
+    const { onSuggest } = renderItem({ onSuggest: vi.fn(), suggestion: { status: 'loading' } })
+    const improve = screen.getByRole('button', { name: 'Improving "Buy milk"…' })
+    expect(improve).toHaveAttribute('aria-disabled', 'true')
+    expect(improve).toBeEnabled()
+    await userEvent.click(improve)
+    expect(onSuggest).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('Getting a suggestion…')
+  })
+
+  it('returns focus to the Improve button when the panel is dismissed', async () => {
+    renderItem({
+      onSuggest: vi.fn(),
+      onDismissSuggestion: vi.fn(),
+      suggestion: { status: 'error' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.getByRole('button', { name: 'Improve "Buy milk" with AI' })).toHaveFocus()
+  })
+
+  it('returns focus to the checkbox when there is no Improve button', async () => {
+    renderItem({
+      onDismissSuggestion: vi.fn(),
+      suggestion: { status: 'empty' },
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.getByRole('checkbox', { name: 'Buy milk' })).toHaveFocus()
   })
 
   it('passes the task id through accept, dismiss and retry', async () => {

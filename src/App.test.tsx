@@ -35,4 +35,18 @@ describe('App', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
     expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
   })
+
+  it('moves focus to a neighbouring task, then to the input, after deleting', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const input = screen.getByLabelText('New task')
+    await user.type(input, 'First{Enter}')
+    await user.type(input, 'Second{Enter}')
+
+    await user.click(screen.getByRole('button', { name: 'Delete "First"' }))
+    expect(screen.getByRole('checkbox', { name: 'Second' })).toHaveFocus()
+
+    await user.keyboard('{Tab}{Enter}')
+    expect(input).toHaveFocus()
+  })
 })
