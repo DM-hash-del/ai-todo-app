@@ -15,10 +15,11 @@ export type PersistedState = {
 
 export function isSuggestion(value: unknown): value is Suggestion {
   if (typeof value !== 'object' || value === null) return false
-  const { improvedName, tips, category } = value as Record<string, unknown>
+  const { improvedName, tips, category, model } = value as Record<string, unknown>
   return (
     typeof improvedName === 'string' &&
     typeof category === 'string' &&
+    (model === undefined || typeof model === 'string') &&
     Array.isArray(tips) &&
     tips.every((tip) => typeof tip === 'string')
   )
