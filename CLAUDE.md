@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- `npm run dev`: runs the Vite frontend (`web`) and the Express API (`api`, via `tsx watch --env-file=.env`) together using `concurrently`
+- `npm run dev`: runs the Vite frontend (`web`) and the PHP API (`api`, via `php -S localhost:3001 -t public`) together using `concurrently`. Needs `php` (8.1+, with curl and mbstring) on the PATH and `config/config.php`.
 - `npm run build`: `tsc -b` (project references), then `vite build`
 - `npm run lint`: ESLint (flat config, `eslint.config.js`)
 - `npm test`: Vitest in watch mode. Use `npx vitest run` for a single pass, `npx vitest run path/to/file.test.tsx` for one file, and `-t "name"` to filter by test name.
@@ -93,7 +93,8 @@ The app has two processes that run side by side in development:
   - **Persistence:** `src/storage.ts` loads tasks from `localStorage` (key `tasks`) on first render and saves on every change. Each saved task may carry a `suggestion` (the raw API `Suggestion`), but only for `ready` suggestions that haven't been accepted or dismissed; they're restored as `ready`. Kept `category` / `tips` and `createdAt` are saved as part of the task. The "Suggest as I type" setting is saved separately (key `suggestAsYouType`). Missing, corrupted or non-array data loads as an empty list, and individual malformed entries are skipped (a malformed `category` or `tips` is dropped on its own, keeping the task). The test setup clears `localStorage` before and after each test.
   - **States preview:** under `npm run dev`, open `http://localhost:5173/#states` to see every `TaskItem` state, the empty list and the type-ahead together (`src/dev/StatesPreview.tsx`; `AddTaskForm`'s dev-only `preview` prop starts it with text and a grey suggestion showing). It's dev-only and dropped from production builds. When you add a new state, add it there too.
 - **API** (`server/app.ts`, started by `server/index.ts`): an Express 5 server on port 3001. `createApp(openai)` builds the app around an injected OpenAI client, so `server/app.test.ts` (node environment) can pass a fake one. It exposes `POST /api/suggest`, which takes `{ description }` and calls the OpenAI **Responses API** (`openai.responses.parse`) with a Zod schema (`zodTextFormat`) to get structured output: `{ improvedName, tips[], category }` (the prompt asks it to return an already-clear name unchanged). It also exposes `POST /api/complete` for the type-ahead, which takes `{ text }` and returns `{ completion }` the same way. Both use `OPENAI_MODEL`, reject input over 200 characters (`MAX_INPUT_LENGTH`), cap output with `max_output_tokens`, and tell the model to treat the task text as data, not instructions. The Zod fields have `.max()` limits. `textFormat()` strips string `maxLength` from the JSON schema sent to OpenAI (strict mode doesn't accept it; `maxItems` stays), but the SDK still parses the answer with the full schema, so an overlong answer becomes a 502. The app's purpose is AI-assisted to-do item improvement.
-- **Proxy:** in `vite.config.ts`, Vite proxies `/api` to `http://localhost:3001`. Frontend code should call relative `/api/...` URLs so the OpenAI key never reaches the browser.
+- **PHP API** (`public/api/`): the API `npm run dev` actually runs. `suggest.php` and `complete.php` are ports of the two Express routes, with the same request/response shapes, validation messages, limits and prompts. `lib.php` holds the shared parts: the constants, `express.json()`-like body parsing, JS-style trim and UTF-16 length (`js_length`, so limits count like `.length`), and the curl call to `POST /v1/responses` with a strict `json_schema` text format. It retries connection errors and 408/409/429/5xx twice, like the SDK. Like `responses.parse`, it decodes the first `output_text` and checks the string `.max()` limits itself (an overlong or unparseable answer is a 502), and returns `null` for a refusal or no output. Errors go to `error_log` (the `php -S` terminal). Non-POST requests get `405`. `public/api/.htaccess` maps `/api/suggest` and `/api/complete` to the `.php` files under Apache and blocks `lib.php`. `php -S` ignores `.htaccess`, so the Vite proxy rewrites the same way. Since it's in `public/`, `vite build` copies `api/` into `dist/`. Keep the PHP and Express routes in sync if either changes; `server/app.test.ts` only covers the Express version.
+- **Proxy:** in `vite.config.ts`, Vite proxies `/api` to `http://localhost:3001` and rewrites `/api/suggest` and `/api/complete` to `/api/suggest.php` and `/api/complete.php`. Frontend code should call relative `/api/...` URLs so the OpenAI key never reaches the browser.
 
 TypeScript is split with project references:
 - `tsconfig.app.json` covers `src/` (bundler resolution, DOM libs)
@@ -132,7 +133,9 @@ There are two endpoints: `POST /api/suggest` (Improve) and `POST /api/complete` 
 
 ## Environment
 
-Copy `.env.example` to `.env`. The server needs:
+**PHP API (used by `npm run dev`):** copy `config/config.example.php` to `config/config.php` (gitignored, outside the `public/` web root) and set `openai_api_key`, `suggest_model` and `complete_model` (and optionally `base_url`). If it's missing or incomplete, both routes return 502 and log why. `.claude/settings.json` denies reading it.
+
+**Express API (`server/`, not started by `npm run dev` any more):** copy `.env.example` to `.env`. It needs:
 - `OPENAI_API_KEY`: read implicitly by the OpenAI SDK
 - `OPENAI_MODEL`: required; the server uses it with a non-null assertion
 
