@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# PHP API config (holds the OpenAI key)
+config/config.php

@@ -1,0 +1,9 @@
+# Map the extensionless API routes to their PHP files (Apache + mod_rewrite).
+# `php -S` ignores this file; vite.config.ts rewrites the same way in dev.
+RewriteEngine On
+RewriteRule ^(suggest|complete)$ $1.php [L]
+
+# lib.php is shared code, not an endpoint.
+<Files "lib.php">
+    Require all denied
+</Files>
